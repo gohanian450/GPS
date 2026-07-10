@@ -19,3 +19,17 @@ export interface EtaResult {
   freeFlowSeconds: number | null;
   trafficDelaySeconds: number;
 }
+
+export interface GeocodeResult {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
+export interface RouteResult {
+  liveSeconds: number | null;
+  freeFlowSeconds: number | null;
+  trafficDelaySeconds: number;
+  distanceMeters: number | null;
+  points: LatLng[];
+}

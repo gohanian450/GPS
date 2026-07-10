@@ -242,6 +242,25 @@ body {
   opacity: 0.6;
 }
 
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.input-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-route {
+  background: #4d9fff;
+  color: #04213f;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: auto;
+}
+
 .button-row {
   display: flex;
   gap: 0.6rem;

@@ -3,10 +3,11 @@ import { Speedometer } from './components/Speedometer';
 import { StatsPanel } from './components/StatsPanel';
 import { TripMap } from './components/TripMap';
 import { SuggestionPanel } from './components/SuggestionPanel';
+import { RoutePanel } from './components/RoutePanel';
 import { TripHistory } from './components/TripHistory';
 import { useTracker } from './lib/useTracker';
-import type { Trip, EtaResult, LatLng } from './lib/types';
-import { bestTrip, listTrips, saveTrip, deleteTrip, clearTrips, fetchEta } from './lib/api';
+import type { Trip, EtaResult, LatLng, RouteResult } from './lib/types';
+import { bestTrip, listTrips, saveTrip, deleteTrip, clearTrips, fetchEta, geocode, fetchRoute } from './lib/api';
 
 export default function App() {
   const { state, start, stop, reset } = useTracker();
@@ -19,6 +20,13 @@ export default function App() {
   const [etaError, setEtaError] = useState<string | null>(null);
   const [showTraffic, setShowTraffic] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: 'ok' | 'err' } | null>(null);
+
+  // Itinéraire vers une adresse recherchée.
+  const [route, setRoute] = useState<RouteResult | null>(null);
+  const [routeLabel, setRouteLabel] = useState('');
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [destCoords, setDestCoords] = useState<LatLng | null>(null);
 
   const wasTracking = useRef(false);
 
@@ -126,6 +134,38 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.tracking]);
 
+  // Recherche l'adresse tapée, calcule l'itinéraire et le trace sur la carte.
+  const handleFindRoute = async () => {
+    const query = destination.trim();
+    if (!query) {
+      showToast('Entrez une adresse ou une destination.', 'err');
+      return;
+    }
+    setRouteLoading(true);
+    setRouteError(null);
+    setRoute(null);
+    try {
+      const geo = await geocode(query);
+      setDestCoords({ lat: geo.lat, lng: geo.lng });
+      setRouteLabel(geo.label);
+
+      const origin = await new Promise<LatLng>((resolve, reject) => {
+        if (!('geolocation' in navigator)) return reject(new Error('Géolocalisation non disponible.'));
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => reject(new Error('Position actuelle indisponible. Autorisez la géolocalisation.')),
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      });
+
+      setRoute(await fetchRoute(origin, { lat: geo.lat, lng: geo.lng }));
+    } catch (e) {
+      setRouteError((e as Error).message);
+    } finally {
+      setRouteLoading(false);
+    }
+  };
+
   const handleStart = () => {
     if (!destination.trim()) {
       showToast('Entrez une destination avant de démarrer.', 'err');
@@ -184,15 +224,28 @@ export default function App() {
 
           <div className="panel controls">
             <label className="field">
-              <span className="field-label">Destination</span>
-              <input
-                type="text"
-                className="input"
-                placeholder="Ex : Travail, Chalet…"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                disabled={state.tracking}
-              />
+              <span className="field-label">Destination / adresse</span>
+              <div className="input-row">
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Ex : 123 rue Sainte-Catherine, Montréal"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !state.tracking) handleFindRoute();
+                  }}
+                  disabled={state.tracking}
+                />
+                <button
+                  className="btn btn-route btn-sm"
+                  onClick={handleFindRoute}
+                  disabled={state.tracking || routeLoading}
+                  title="Trouver l'itinéraire vers cette adresse"
+                >
+                  🧭 Itinéraire
+                </button>
+              </div>
             </label>
             <div className="button-row">
               {!state.tracking ? (
@@ -213,6 +266,8 @@ export default function App() {
             )}
           </div>
 
+          <RoutePanel label={routeLabel} route={route} loading={routeLoading} error={routeError} />
+
           <SuggestionPanel best={best} eta={eta} etaError={etaError} loading={suggestionLoading} />
         </section>
 
@@ -221,6 +276,8 @@ export default function App() {
             path={state.path}
             position={state.position}
             suggestionPath={best?.path ?? null}
+            routePath={route?.points ?? null}
+            destination={destCoords}
             showTraffic={showTraffic}
           />
           <TripHistory trips={trips} onDelete={handleDelete} onClear={handleClear} />

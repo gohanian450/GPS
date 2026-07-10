@@ -23,6 +23,10 @@ style tableau de bord, en français québécois.
 4. **Trafic en direct (TomTom)** — temps ajusté au trafic + badge « plus lent /
    plus rapide que la normale », et couche de trafic coloré optionnelle.
    **La clé TomTom reste toujours côté serveur.**
+5. **Recherche d'adresse + itinéraire** — tapez une adresse réelle et cliquez
+   sur **🧭 Itinéraire** : l'app géocode l'adresse, trace le chemin vers la
+   destination sur la carte (ligne bleue) et affiche le temps de trajet estimé
+   avec le trafic. ⚠️ Nécessite `TOMTOM_API_KEY`.
 
 ---
 
@@ -136,6 +140,8 @@ La table `trips` est créée automatiquement au premier appel API
 | `GET`   | `/api/trips/best?destination=X`                             | Meilleur trajet (vitesse moyenne la plus haute)|
 | `DELETE`| `/api/trips/:id`                                            | Supprimer un trajet                            |
 | `DELETE`| `/api/trips`                                                | Tout effacer                                   |
+| `GET`   | `/api/traffic/geocode?q=adresse`                           | Adresse → `{ lat, lng, label }` (TomTom Search)|
+| `GET`   | `/api/traffic/route?originLat=&originLng=&destLat=&destLng=`| Itinéraire : temps + géométrie à tracer        |
 | `GET`   | `/api/traffic/eta?originLat=&originLng=&destLat=&destLng=`  | `{ liveSeconds, freeFlowSeconds }` (TomTom)    |
 | `GET`   | `/api/traffic/tile/:z/:x/:y`                                | Proxy des tuiles de trafic TomTom              |
 | `GET`   | `/api/health`                                               | État du serveur + présence de la clé TomTom    |

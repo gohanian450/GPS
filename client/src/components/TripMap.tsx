@@ -7,16 +7,20 @@ interface Props {
   path: LatLng[];
   position: LatLng | null;
   suggestionPath?: LatLng[] | null;
+  routePath?: LatLng[] | null;
+  destination?: LatLng | null;
   showTraffic: boolean;
 }
 
 const MONTREAL: L.LatLngExpression = [45.5017, -73.5673];
 
-export function TripMap({ path, position, suggestionPath, showTraffic }: Props) {
+export function TripMap({ path, position, suggestionPath, routePath, destination, showTraffic }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const liveLine = useRef<L.Polyline | null>(null);
   const suggestLine = useRef<L.Polyline | null>(null);
+  const routeLine = useRef<L.Polyline | null>(null);
+  const destMarker = useRef<L.CircleMarker | null>(null);
   const marker = useRef<L.CircleMarker | null>(null);
   const trafficLayer = useRef<L.TileLayer | null>(null);
   const hasCentered = useRef(false);
@@ -36,6 +40,8 @@ export function TripMap({ path, position, suggestionPath, showTraffic }: Props) 
       maxZoom: 19,
     }).addTo(map);
 
+    // Itinéraire planifié vers l'adresse (ligne pleine bleu navigation).
+    routeLine.current = L.polyline([], { color: '#4d9fff', weight: 6, opacity: 0.85 }).addTo(map);
     liveLine.current = L.polyline([], { color: '#2dd4bf', weight: 5, opacity: 0.9 }).addTo(map);
     suggestLine.current = L.polyline([], {
       color: '#ffb020',
@@ -95,6 +101,39 @@ export function TripMap({ path, position, suggestionPath, showTraffic }: Props) 
       map.fitBounds(suggestLine.current.getBounds(), { padding: [40, 40] });
     }
   }, [suggestionPath, path.length]);
+
+  // Itinéraire planifié vers l'adresse recherchée + marqueur de destination.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !routeLine.current) return;
+
+    const latlngs = (routePath ?? []).map((p) => [p.lat, p.lng] as L.LatLngTuple);
+    routeLine.current.setLatLngs(latlngs);
+
+    if (destination) {
+      const ll: L.LatLngTuple = [destination.lat, destination.lng];
+      if (!destMarker.current) {
+        destMarker.current = L.circleMarker(ll, {
+          radius: 9,
+          color: '#0a0d0f',
+          weight: 2,
+          fillColor: '#ff4d4f',
+          fillOpacity: 1,
+        }).addTo(map);
+        destMarker.current.bindTooltip('Destination', { direction: 'top', offset: [0, -8] });
+      } else {
+        destMarker.current.setLatLng(ll);
+      }
+    } else if (destMarker.current) {
+      map.removeLayer(destMarker.current);
+      destMarker.current = null;
+    }
+
+    // Cadre la carte sur l'itinéraire lorsqu'on vient de le calculer (pas de suivi en cours).
+    if (latlngs.length > 1 && path.length === 0) {
+      map.fitBounds(routeLine.current.getBounds(), { padding: [50, 50] });
+    }
+  }, [routePath, destination, path.length]);
 
   // Couche de trafic TomTom (proxy backend).
   useEffect(() => {

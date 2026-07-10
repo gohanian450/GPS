@@ -47,7 +47,7 @@ style tableau de bord, en français québécois.
 ```
 .
 ├── api/
-│   └── [...slug].ts      # Fonction serverless Vercel → app Express partagée
+│   └── index.ts          # Fonction serverless Vercel → app Express partagée
 ├── server/src/           # Code backend partagé (dev local + serverless)
 │   ├── app.ts            # createApp() : fabrique l'app Express
 │   ├── db.ts             # Client Turso/libSQL + schéma
@@ -63,7 +63,7 @@ style tableau de bord, en français québécois.
 ```
 
 Le backend est écrit une seule fois (`server/src/app.ts`) et réutilisé par le
-serveur de dev local **et** par la fonction serverless Vercel (`api/[...slug].ts`),
+serveur de dev local **et** par la fonction serverless Vercel (`api/index.ts`),
 qui exporte simplement l'app Express — une app Express étant une fonction
 `(req, res) => …`, elle est directement utilisable comme handler Vercel.
 
@@ -115,7 +115,7 @@ La table `trips` est créée automatiquement au premier appel API
 
 1. Poussez le dépôt sur GitHub et importez-le dans Vercel.
 2. Vercel détecte `vercel.json` : il construit le frontend (`client/dist`) et
-   déploie `api/[...slug].ts` comme fonction serverless. Rien d'autre à régler.
+   déploie `api/index.ts` comme fonction serverless. Rien d'autre à régler.
 3. Dans **Project Settings → Environment Variables**, ajoutez :
 
    | Variable              | Exemple                          |

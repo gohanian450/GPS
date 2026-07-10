@@ -23,3 +23,6 @@ server/dist/
 
 # TS build info
 *.tsbuildinfo
+
+# Vercel
+.vercel/

@@ -1,0 +1,25 @@
+# Dépendances
+node_modules/
+
+# Variables d'environnement (ne jamais committer la vraie clé !)
+.env
+server/.env
+
+# Base de données SQLite
+*.db
+*.db-shm
+*.db-wal
+server/routetrack.db*
+
+# Build
+dist/
+client/dist/
+server/dist/
+
+# Logs & divers
+*.log
+.DS_Store
+.vscode/
+
+# TS build info
+*.tsbuildinfo

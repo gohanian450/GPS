@@ -26,7 +26,7 @@ function remainingAlongRoute(points: LatLng[], pos: LatLng): number {
   }
   return rem;
 }
-import type { Trip, EtaResult, LatLng, RouteResult, SearchSuggestion } from './lib/types';
+import type { Trip, EtaResult, LatLng, RouteResult, SearchSuggestion, Report } from './lib/types';
 import {
   bestTrip,
   listTrips,
@@ -37,6 +37,8 @@ import {
   geocode,
   fetchRoute,
   searchAddress,
+  listReports,
+  submitReport,
 } from './lib/api';
 
 export default function App() {
@@ -65,6 +67,10 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const biasPos = useRef<LatLng | null>(null);
+
+  // Signalements communautaires (police, accident, obstacle) — façon Waze.
+  const [reports, setReports] = useState<Report[]>([]);
+  const alertedReports = useRef<Set<string>>(new Set());
 
   // Navigation tour-par-tour : index de la manœuvre courante
   const [navIndex, setNavIndex] = useState(0);
@@ -106,6 +112,52 @@ export default function App() {
   useEffect(() => {
     refreshTrips();
   }, [refreshTrips]);
+
+  // Signalements communautaires : chargés au démarrage puis rafraîchis toutes les 60 s.
+  useEffect(() => {
+    const refresh = () => {
+      listReports()
+        .then(setReports)
+        .catch(() => {
+          /* échec silencieux : pas critique pour l'usage principal */
+        });
+    };
+    refresh();
+    const id = setInterval(refresh, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Signale un événement (police, accident, obstacle) à la position actuelle.
+  const handleReport = useCallback(
+    async (type: 'police' | 'accident' | 'obstacle') => {
+      const pos = state.position ?? biasPos.current;
+      if (!pos) {
+        showToast('Position indisponible pour signaler.', 'err');
+        return;
+      }
+      try {
+        const r = await submitReport(type, pos);
+        setReports((rs) => [r, ...rs]);
+        showToast('Signalement envoyé, merci !', 'ok');
+      } catch (e) {
+        showToast((e as Error).message, 'err');
+      }
+    },
+    [state.position, showToast]
+  );
+
+  // Alerte de proximité (police) pendant le suivi : vibration + toast, une seule fois par signalement.
+  useEffect(() => {
+    if (!state.tracking || !state.position || reports.length === 0) return;
+    for (const r of reports) {
+      if (r.type !== 'police' || alertedReports.current.has(r.id)) continue;
+      if (haversineMeters(state.position, { lat: r.lat, lng: r.lng }) < 300) {
+        alertedReports.current.add(r.id);
+        showToast('🚓 Police signalée à proximité', 'ok');
+        if (typeof navigator.vibrate === 'function') navigator.vibrate([200, 100, 200]);
+      }
+    }
+  }, [state.position, state.tracking, reports, showToast]);
 
   // Position de biais pour l'autocomplétion (résultats proches en priorité).
   useEffect(() => {
@@ -495,6 +547,7 @@ export default function App() {
         recenterNonce={recenterNonce}
         onFollowChange={setFollowing}
         courseUp={state.tracking}
+        reports={reports}
       />
 
       <div className="ov-credit">© OpenStreetMap · Trafic TomTom</div>
@@ -573,6 +626,17 @@ export default function App() {
         <button className="fab" onClick={() => setHistoryOpen(true)} title="Historique" aria-label="Historique">
           🕘
         </button>
+        {/* Signaler la police à sa position (façon Waze), pendant le suivi */}
+        {state.tracking && (
+          <button
+            className="fab fab-report"
+            onClick={() => handleReport('police')}
+            title="Signaler la police ici"
+            aria-label="Signaler la police ici"
+          >
+            🚓
+          </button>
+        )}
         {/* #1 Recentrer : apparaît quand on a déplacé la carte pendant le suivi */}
         {state.tracking && !following && (
           <button

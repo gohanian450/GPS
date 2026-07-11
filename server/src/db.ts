@@ -26,6 +26,18 @@ export function ensureSchema(): Promise<void> {
           path          TEXT NOT NULL
         )`
       )
+      .then(() =>
+        db.execute(
+          // Signalements communautaires (style Waze) : police, accident, obstacle...
+          `CREATE TABLE IF NOT EXISTS reports (
+            id         TEXT PRIMARY KEY,
+            type       TEXT NOT NULL,
+            lat        REAL NOT NULL,
+            lng        REAL NOT NULL,
+            created_at INTEGER NOT NULL
+          )`
+        )
+      )
       .then(() => undefined)
       .catch((err) => {
         schemaReady = null; // autorise une nouvelle tentative au prochain appel

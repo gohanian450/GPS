@@ -1,4 +1,4 @@
-import type { Trip, EtaResult, LatLng, GeocodeResult, RouteResult, SearchSuggestion } from './types';
+import type { Trip, EtaResult, LatLng, GeocodeResult, RouteResult, SearchSuggestion, Report, ReportType } from './types';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -88,4 +88,19 @@ export async function fetchRoute(origin: LatLng, dest: LatLng, heading?: number 
   let qs = routeParams(origin, dest);
   if (heading != null && Number.isFinite(heading)) qs += `&vehicleHeading=${Math.round(heading)}`;
   return jsonOrThrow<RouteResult>(await fetch(`/api/traffic/route?${qs}`));
+}
+
+// Signalements communautaires (police, accident, obstacle) — façon Waze.
+export async function listReports(): Promise<Report[]> {
+  return jsonOrThrow<Report[]>(await fetch('/api/reports'));
+}
+
+export async function submitReport(type: ReportType, pos: LatLng): Promise<Report> {
+  return jsonOrThrow<Report>(
+    await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, lat: pos.lat, lng: pos.lng }),
+    })
+  );
 }

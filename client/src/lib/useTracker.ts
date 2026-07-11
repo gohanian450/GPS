@@ -30,9 +30,13 @@ const INITIAL: TrackerState = {
   error: null,
 };
 
-// Sous ce seuil de précision (m) ou de déplacement, on ignore le point
-// pour éviter que le bruit GPS ne gonfle la distance à l'arrêt.
+// Sous ce seuil de déplacement (m), on ignore le point pour éviter que le
+// bruit GPS ne gonfle la distance à l'arrêt.
 const MIN_MOVE_METERS = 3;
+
+// Au-delà de ce niveau d'imprécision (m), la fixation GPS est jugée trop
+// mauvaise et ignorée (sauts, tracé qui traverse l'eau).
+const POOR_ACCURACY_METERS = 50;
 
 export function useTracker() {
   const [state, setState] = useState<TrackerState>(INITIAL);
@@ -86,6 +90,13 @@ export function useTracker() {
       (pos) => {
         const now = pos.timestamp || Date.now();
         const current: LatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+        // Filtre les fixations GPS trop imprécises (> 50 m) une fois qu'on a un
+        // point de référence : évite les sauts (ex. tracé qui part dans l'eau).
+        const acc = pos.coords.accuracy ?? 9999;
+        if (acc > POOR_ACCURACY_METERS && lastPoint.current) {
+          return;
+        }
 
         let instant = 0;
         let addedMeters = 0;

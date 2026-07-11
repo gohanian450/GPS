@@ -132,9 +132,11 @@ trafficRouter.get('/route', async (req, res) => {
   }
   const [oLat, oLng, dLat, dLng] = coords;
 
+  // routeRepresentation=polyline → géométrie détaillée (le tracé suit la route).
+  // avoid=ferries → évite les traversiers (sinon le trajet « passe dans l'eau »).
   const url =
     `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json` +
-    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all`;
+    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline&avoid=ferries`;
 
   try {
     const r = await fetch(url);

@@ -130,6 +130,12 @@ trafficRouter.get('/route', async (req, res) => {
     if (!r.ok) {
       const detail = await tomtomErrorDetail(r);
       console.error(`TomTom Routing (route) ${r.status}: ${detail}`);
+      if (/NO_ROUTE_FOUND/i.test(detail)) {
+        return res.status(422).json({
+          error:
+            "Aucun itinéraire routier trouvé entre ta position actuelle et cette adresse. Vérifie ta position GPS (marqueur vert « Départ ») et que l'adresse est complète (numéro, rue, ville).",
+        });
+      }
       return res.status(502).json({ error: `TomTom Routing (${r.status}) : ${detail}` });
     }
     const data = (await r.json()) as any;

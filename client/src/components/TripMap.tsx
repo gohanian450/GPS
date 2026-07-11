@@ -8,19 +8,21 @@ interface Props {
   position: LatLng | null;
   suggestionPath?: LatLng[] | null;
   routePath?: LatLng[] | null;
+  origin?: LatLng | null;
   destination?: LatLng | null;
   showTraffic: boolean;
 }
 
 const MONTREAL: L.LatLngExpression = [45.5017, -73.5673];
 
-export function TripMap({ path, position, suggestionPath, routePath, destination, showTraffic }: Props) {
+export function TripMap({ path, position, suggestionPath, routePath, origin, destination, showTraffic }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const liveLine = useRef<L.Polyline | null>(null);
   const suggestLine = useRef<L.Polyline | null>(null);
   const routeLine = useRef<L.Polyline | null>(null);
   const destMarker = useRef<L.CircleMarker | null>(null);
+  const originMarker = useRef<L.CircleMarker | null>(null);
   const marker = useRef<L.CircleMarker | null>(null);
   const trafficLayer = useRef<L.TileLayer | null>(null);
   const hasCentered = useRef(false);
@@ -102,7 +104,7 @@ export function TripMap({ path, position, suggestionPath, routePath, destination
     }
   }, [suggestionPath, path.length]);
 
-  // Itinéraire planifié vers l'adresse recherchée + marqueur de destination.
+  // Itinéraire planifié + marqueurs de départ (vert) et de destination (rouge).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !routeLine.current) return;
@@ -110,30 +112,47 @@ export function TripMap({ path, position, suggestionPath, routePath, destination
     const latlngs = (routePath ?? []).map((p) => [p.lat, p.lng] as L.LatLngTuple);
     routeLine.current.setLatLngs(latlngs);
 
-    if (destination) {
-      const ll: L.LatLngTuple = [destination.lat, destination.lng];
-      if (!destMarker.current) {
-        destMarker.current = L.circleMarker(ll, {
-          radius: 9,
-          color: '#0a0d0f',
-          weight: 2,
-          fillColor: '#ff4d4f',
-          fillOpacity: 1,
-        }).addTo(map);
-        destMarker.current.bindTooltip('Destination', { direction: 'top', offset: [0, -8] });
-      } else {
-        destMarker.current.setLatLng(ll);
+    const upsertMarker = (
+      ref: typeof destMarker,
+      point: LatLng | null | undefined,
+      color: string,
+      tooltip: string
+    ) => {
+      if (point) {
+        const ll: L.LatLngTuple = [point.lat, point.lng];
+        if (!ref.current) {
+          ref.current = L.circleMarker(ll, {
+            radius: 9,
+            color: '#0a0d0f',
+            weight: 2,
+            fillColor: color,
+            fillOpacity: 1,
+          }).addTo(map);
+          ref.current.bindTooltip(tooltip, { direction: 'top', offset: [0, -8] });
+        } else {
+          ref.current.setLatLng(ll);
+        }
+      } else if (ref.current) {
+        map.removeLayer(ref.current);
+        ref.current = null;
       }
-    } else if (destMarker.current) {
-      map.removeLayer(destMarker.current);
-      destMarker.current = null;
-    }
+    };
 
-    // Cadre la carte sur l'itinéraire lorsqu'on vient de le calculer (pas de suivi en cours).
-    if (latlngs.length > 1 && path.length === 0) {
-      map.fitBounds(routeLine.current.getBounds(), { padding: [50, 50] });
+    upsertMarker(destMarker, destination, '#ff4d4f', 'Destination');
+    upsertMarker(originMarker, origin, '#2dd4bf', 'Départ');
+
+    // Cadre la carte pour montrer départ + destination (+ itinéraire) hors suivi.
+    if (path.length === 0) {
+      const pts: L.LatLngTuple[] = [...latlngs];
+      if (origin) pts.push([origin.lat, origin.lng]);
+      if (destination) pts.push([destination.lat, destination.lng]);
+      if (pts.length >= 2) {
+        map.fitBounds(L.latLngBounds(pts), { padding: [50, 50] });
+      } else if (pts.length === 1) {
+        map.setView(pts[0], 14);
+      }
     }
-  }, [routePath, destination, path.length]);
+  }, [routePath, origin, destination, path.length]);
 
   // Couche de trafic TomTom (proxy backend).
   useEffect(() => {

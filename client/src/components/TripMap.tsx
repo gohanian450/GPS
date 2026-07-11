@@ -14,6 +14,7 @@ interface Props {
   showTraffic: boolean;
   recenterNonce?: number;
   onFollowChange?: (following: boolean) => void;
+  courseUp?: boolean; // carte orientée dans le sens de la marche (mode navigation)
 }
 
 const MONTREAL: L.LatLngExpression = [45.5017, -73.5673];
@@ -45,6 +46,7 @@ export function TripMap({
   showTraffic,
   recenterNonce,
   onFollowChange,
+  courseUp,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -68,6 +70,7 @@ export function TripMap({
       center: MONTREAL,
       zoom: 13,
       zoomControl: false, // look épuré style Waze/Google Maps (zoom au pincement/molette)
+      attributionControl: false, // le conteneur est agrandi pour la rotation → crédit en surimpression
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -132,8 +135,40 @@ export function TripMap({
       } else if (followRef.current) {
         map.panTo(ll, { animate: true, duration: 0.5 });
       }
+
+      // Mode « course-up » : on tourne la carte pour que le sens de la marche
+      // pointe vers le haut (on voit toujours la route devant).
+      if (courseUp && containerRef.current && typeof heading === 'number') {
+        containerRef.current.style.transform = `rotate(${-heading}deg)`;
+      }
     }
-  }, [path, position, heading]);
+  }, [path, position, heading, courseUp]);
+
+  // Active/désactive le mode navigation (carte agrandie + rotation + suivi verrouillé).
+  useEffect(() => {
+    const map = mapRef.current;
+    const el = containerRef.current;
+    if (!map || !el) return;
+
+    if (courseUp) {
+      el.classList.add('map--nav');
+      map.dragging.disable(); // en navigation, la carte suit toujours la voiture
+      followRef.current = true;
+      onFollowChangeRef.current?.(true);
+    } else {
+      el.classList.remove('map--nav');
+      el.style.transform = '';
+      map.dragging.enable();
+    }
+
+    // Le conteneur change de taille : on recalcule et on recentre.
+    setTimeout(() => {
+      map.invalidateSize();
+      if (marker.current) {
+        map.setView(marker.current.getLatLng(), courseUp ? 17 : map.getZoom(), { animate: false });
+      }
+    }, 80);
+  }, [courseUp]);
 
   // Recentrer sur la voiture (déclenché par le bouton) → réactive le suivi.
   useEffect(() => {

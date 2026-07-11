@@ -47,6 +47,33 @@ body {
   border: 0;
   border-radius: 0;
   z-index: 0;
+  transform-origin: 50% 50%;
+  transition: transform 0.3s ease-out;
+}
+
+/* Mode navigation : conteneur agrandi pour couvrir les coins quand la carte tourne */
+.map--nav {
+  inset: auto;
+  top: -21%;
+  left: -21%;
+  right: auto;
+  bottom: auto;
+  width: 142%;
+  height: 142%;
+}
+
+/* Crédit OpenStreetMap en surimpression (le contrôle Leaflet est désactivé) */
+.ov-credit {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  z-index: 500;
+  font-size: 0.62rem;
+  color: var(--muted);
+  background: rgba(10, 13, 15, 0.5);
+  padding: 1px 5px;
+  border-radius: 5px;
+  pointer-events: none;
 }
 
 .leaflet-container {
@@ -272,7 +299,33 @@ body {
   border-color: var(--amber);
 }
 
-/* ============ Pastille de vitesse (Waze) — en bas à gauche ============ */
+/* ============ Vitesse + limite (Waze) — en bas à gauche ============ */
+.ov-speedrow {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Panneau de limite de vitesse (style européen : cercle blanc, bord rouge) */
+.ov-limit {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #fff;
+  border: 5px solid var(--red);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.ov-limit span {
+  color: #111;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
 .ov-speed {
   align-self: flex-start;
   width: 78px;

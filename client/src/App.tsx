@@ -462,6 +462,22 @@ export default function App() {
     };
   }
 
+  // Limite de vitesse du tronçon courant (si TomTom la fournit).
+  let currentSpeedLimit: number | null = null;
+  if (state.tracking && route?.points?.length && route.speedLimits?.length && state.position) {
+    let nearest = 0;
+    let min = Infinity;
+    for (let i = 0; i < route.points.length; i++) {
+      const d = haversineMeters(state.position, route.points[i]);
+      if (d < min) {
+        min = d;
+        nearest = i;
+      }
+    }
+    const sec = route.speedLimits.find((s) => nearest >= s.startPointIndex && nearest <= s.endPointIndex);
+    if (sec) currentSpeedLimit = sec.speedKmh;
+  }
+
   return (
     <div className="app-map">
       {/* Carte plein écran en fond */}
@@ -476,7 +492,10 @@ export default function App() {
         showTraffic={showTraffic}
         recenterNonce={recenterNonce}
         onFollowChange={setFollowing}
+        courseUp={state.tracking}
       />
+
+      <div className="ov-credit">© OpenStreetMap · Trafic TomTom</div>
 
       {/* En navigation : bandeau de manœuvre en haut. Sinon : barre de recherche. */}
       {currentInstr && <NavBanner instruction={currentInstr} distanceMeters={navDistance} />}
@@ -569,11 +588,18 @@ export default function App() {
 
       {/* Zone basse empilée : vitesse → erreur → feuille d'info (style Waze/Google Maps) */}
       <div className="ov-bottom">
-        {/* Pastille de vitesse en bas à gauche (n'est plus cachée par les indications) */}
+        {/* Vitesse + panneau de limite (bas à gauche) */}
         {state.tracking && (
-          <div className={`ov-speed ${state.speedKmh > speedLimit ? 'ov-speed--over' : ''}`}>
-            <span className="ov-speed-num">{Math.round(state.speedKmh)}</span>
-            <span className="ov-speed-unit">km/h</span>
+          <div className="ov-speedrow">
+            <div className={`ov-speed ${state.speedKmh > (currentSpeedLimit ?? speedLimit) ? 'ov-speed--over' : ''}`}>
+              <span className="ov-speed-num">{Math.round(state.speedKmh)}</span>
+              <span className="ov-speed-unit">km/h</span>
+            </div>
+            {currentSpeedLimit != null && (
+              <div className="ov-limit" title="Limite de vitesse">
+                <span>{currentSpeedLimit}</span>
+              </div>
+            )}
           </div>
         )}
 

@@ -190,6 +190,52 @@ body {
   cursor: not-allowed;
 }
 
+/* ============ Bandeau de navigation (manœuvre) ============ */
+.ov-nav {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 640px;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: linear-gradient(180deg, #14343a, #0f2529);
+  border: 1px solid #1f4a52;
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.ov-nav-icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.ov-nav-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ov-nav-dist {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--teal);
+  line-height: 1.1;
+}
+
+.ov-nav-instr {
+  font-size: 1.05rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ============ Boutons flottants (FAB) ============ */
 .ov-fabs {
   position: absolute;

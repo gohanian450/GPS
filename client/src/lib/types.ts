@@ -33,10 +33,20 @@ export interface SearchSuggestion {
   lng: number;
 }
 
+export interface NavInstruction {
+  text: string;
+  maneuver: string;
+  street?: string;
+  routeOffsetInMeters: number;
+  lat: number | null;
+  lng: number | null;
+}
+
 export interface RouteResult {
   liveSeconds: number | null;
   freeFlowSeconds: number | null;
   trafficDelaySeconds: number;
   distanceMeters: number | null;
   points: LatLng[];
+  instructions: NavInstruction[];
 }

@@ -180,9 +180,11 @@ trafficRouter.get('/route', async (req, res) => {
 
   // routeRepresentation=polyline → géométrie détaillée (le tracé suit la route).
   // avoid=ferries → évite les traversiers (sinon le trajet « passe dans l'eau »).
+  // instructionsType=text → manœuvres de navigation (« tournez à droite… »).
   const url =
     `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json` +
-    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline&avoid=ferries`;
+    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline&avoid=ferries` +
+    `&instructionsType=text&language=fr-FR`;
 
   try {
     const r = await fetch(url);
@@ -206,12 +208,21 @@ trafficRouter.get('/route', async (req, res) => {
     const points: Array<{ lat: number; lng: number }> = (route.legs ?? []).flatMap((leg: any) =>
       (leg.points ?? []).map((p: any) => ({ lat: p.latitude, lng: p.longitude }))
     );
+    const instructions = (route.guidance?.instructions ?? []).map((it: any) => ({
+      text: it.message ?? '',
+      maneuver: it.maneuver ?? '',
+      street: it.street ?? it.roadNumbers?.[0] ?? '',
+      routeOffsetInMeters: it.routeOffsetInMeters ?? 0,
+      lat: it.point?.latitude ?? null,
+      lng: it.point?.longitude ?? null,
+    }));
     res.json({
       liveSeconds: summary.travelTimeInSeconds ?? null,
       freeFlowSeconds: summary.noTrafficTravelTimeInSeconds ?? summary.travelTimeInSeconds ?? null,
       trafficDelaySeconds: summary.trafficDelayInSeconds ?? 0,
       distanceMeters: summary.lengthInMeters ?? null,
       points,
+      instructions,
     });
   } catch {
     res.status(502).json({ error: 'API TomTom indisponible.' });

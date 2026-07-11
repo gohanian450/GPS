@@ -81,9 +81,18 @@ trafficRouter.get('/geocode', async (req, res) => {
     return res.status(400).json({ error: 'Adresse requise.' });
   }
 
-  const url =
+  let url =
     `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(q)}.json` +
     `?key=${TOMTOM_KEY}&limit=1&countrySet=CA&language=fr-CA`;
+
+  // Biais de proximité : si la position de l'utilisateur est fournie, on
+  // privilégie la correspondance la plus proche (utile pour une adresse
+  // ambiguë comme « rue Dupuis », présente dans plusieurs villes).
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    url += `&lat=${lat}&lon=${lng}`;
+  }
 
   try {
     const r = await fetch(url);

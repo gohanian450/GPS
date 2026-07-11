@@ -146,10 +146,7 @@ export default function App() {
     setRouteError(null);
     setRoute(null);
     try {
-      const geo = await geocode(query);
-      setDestCoords({ lat: geo.lat, lng: geo.lng });
-      setRouteLabel(geo.label);
-
+      // 1) Position actuelle d'abord (sert de départ ET de biais au géocodage).
       const origin = await new Promise<LatLng>((resolve, reject) => {
         if (!('geolocation' in navigator)) return reject(new Error('Géolocalisation non disponible.'));
         navigator.geolocation.getCurrentPosition(
@@ -160,6 +157,12 @@ export default function App() {
       });
       setOriginCoords(origin);
 
+      // 2) Géocodage biaisé vers la position → adresse ambiguë résolue au plus proche.
+      const geo = await geocode(query, origin);
+      setDestCoords({ lat: geo.lat, lng: geo.lng });
+      setRouteLabel(geo.label);
+
+      // 3) Itinéraire.
       setRoute(await fetchRoute(origin, { lat: geo.lat, lng: geo.lng }));
     } catch (e) {
       setRouteError((e as Error).message);

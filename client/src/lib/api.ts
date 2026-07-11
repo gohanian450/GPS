@@ -59,8 +59,14 @@ export async function fetchEta(origin: LatLng, dest: LatLng): Promise<EtaResult>
 }
 
 // Convertit une adresse tapée en coordonnées (géocodage TomTom, côté serveur).
-export async function geocode(query: string): Promise<GeocodeResult> {
-  return jsonOrThrow<GeocodeResult>(await fetch(`/api/traffic/geocode?q=${encodeURIComponent(query)}`));
+// `near` (position actuelle) biaise la recherche vers la correspondance la plus proche.
+export async function geocode(query: string, near?: LatLng): Promise<GeocodeResult> {
+  const params = new URLSearchParams({ q: query });
+  if (near) {
+    params.set('lat', String(near.lat));
+    params.set('lng', String(near.lng));
+  }
+  return jsonOrThrow<GeocodeResult>(await fetch(`/api/traffic/geocode?${params.toString()}`));
 }
 
 // Calcule l'itinéraire (temps avec trafic + géométrie à tracer sur la carte).

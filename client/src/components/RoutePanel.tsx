@@ -6,10 +6,15 @@ interface Props {
   route: RouteResult | null;
   loading: boolean;
   error: string | null;
+  arrivalAt?: number | null;
   onClose?: () => void;
 }
 
-export function RoutePanel({ label, route, loading, error, onClose }: Props) {
+function formatArrival(ts: number): string {
+  return new Date(ts).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+export function RoutePanel({ label, route, loading, error, arrivalAt, onClose }: Props) {
   if (!loading && !route && !error) return null;
 
   let trafficBadge: { text: string; cls: string } | null = null;
@@ -43,7 +48,7 @@ export function RoutePanel({ label, route, loading, error, onClose }: Props) {
             <div className="eta-time">
               <span className="eta-value">{formatSecondsLabel(route.liveSeconds)}</span>
               <span className="muted small">
-                temps estimé maintenant
+                {arrivalAt != null ? `arrivée à ${formatArrival(arrivalAt)}` : 'temps estimé maintenant'}
                 {route.distanceMeters != null && ` · ${(route.distanceMeters / 1000).toFixed(1)} km`}
               </span>
             </div>

@@ -12,6 +12,8 @@ interface Props {
   origin?: LatLng | null;
   destination?: LatLng | null;
   showTraffic: boolean;
+  recenterNonce?: number;
+  onFollowChange?: (following: boolean) => void;
 }
 
 const MONTREAL: L.LatLngExpression = [45.5017, -73.5673];
@@ -32,7 +34,18 @@ const carIcon = L.divIcon({
   iconAnchor: [19, 19],
 });
 
-export function TripMap({ path, position, heading, suggestionPath, routePath, origin, destination, showTraffic }: Props) {
+export function TripMap({
+  path,
+  position,
+  heading,
+  suggestionPath,
+  routePath,
+  origin,
+  destination,
+  showTraffic,
+  recenterNonce,
+  onFollowChange,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const liveLine = useRef<L.Polyline | null>(null);
@@ -43,6 +56,9 @@ export function TripMap({ path, position, heading, suggestionPath, routePath, or
   const marker = useRef<L.Marker | null>(null);
   const trafficLayer = useRef<L.TileLayer | null>(null);
   const hasCentered = useRef(false);
+  const followRef = useRef(true); // la carte suit la voiture tant que l'utilisateur ne la déplace pas
+  const onFollowChangeRef = useRef(onFollowChange);
+  onFollowChangeRef.current = onFollowChange;
 
   // Initialisation de la carte (une seule fois).
   useEffect(() => {
@@ -68,6 +84,14 @@ export function TripMap({ path, position, heading, suggestionPath, routePath, or
       opacity: 0.85,
       dashArray: '8 10',
     }).addTo(map);
+
+    // Si l'utilisateur déplace la carte au doigt, on cesse de suivre la voiture.
+    map.on('dragstart', () => {
+      if (followRef.current) {
+        followRef.current = false;
+        onFollowChangeRef.current?.(false);
+      }
+    });
 
     mapRef.current = map;
 
@@ -100,15 +124,27 @@ export function TripMap({ path, position, heading, suggestionPath, routePath, or
       if (el && typeof heading === 'number') {
         el.style.transform = `rotate(${heading}deg)`;
       }
-      // Suivi façon navigation : zoom serré au premier point, puis la carte suit la voiture.
+      // Suivi façon navigation : zoom serré au premier point, puis la carte suit
+      // la voiture — sauf si l'utilisateur a déplacé la carte manuellement.
       if (!hasCentered.current) {
         map.setView(ll, 17);
         hasCentered.current = true;
-      } else {
+      } else if (followRef.current) {
         map.panTo(ll, { animate: true, duration: 0.5 });
       }
     }
   }, [path, position, heading]);
+
+  // Recentrer sur la voiture (déclenché par le bouton) → réactive le suivi.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !recenterNonce) return; // ignore la valeur initiale (0)
+    if (marker.current) {
+      map.setView(marker.current.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
+    }
+    followRef.current = true;
+    onFollowChangeRef.current?.(true);
+  }, [recenterNonce]);
 
   // Tracé de suggestion (pointillé).
   useEffect(() => {

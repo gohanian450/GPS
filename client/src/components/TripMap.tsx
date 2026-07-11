@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { LatLng, Report } from '../lib/types';
+import type { LatLng, Report, SpeedCamera } from '../lib/types';
 
 interface Props {
   path: LatLng[];
@@ -16,6 +16,16 @@ interface Props {
   onFollowChange?: (following: boolean) => void;
   courseUp?: boolean; // carte orientée dans le sens de la marche (mode navigation)
   reports?: Report[];
+  speedCameras?: SpeedCamera[];
+}
+
+// Icône selon le type d'appareil officiel (radar / feu rouge).
+function cameraEmoji(deviceType: string): string {
+  const t = deviceType.toLowerCase();
+  if (t.includes('feu rouge') && t.includes('fixe')) return '🚦📷';
+  if (t.includes('feu rouge')) return '🚦';
+  if (t.includes('mobile')) return '🎥';
+  return '📷';
 }
 
 const REPORT_EMOJI: Record<string, string> = {
@@ -55,6 +65,7 @@ export function TripMap({
   onFollowChange,
   courseUp,
   reports,
+  speedCameras,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -66,6 +77,7 @@ export function TripMap({
   const marker = useRef<L.Marker | null>(null);
   const trafficLayer = useRef<L.TileLayer | null>(null);
   const reportLayer = useRef<L.LayerGroup | null>(null);
+  const cameraLayer = useRef<L.LayerGroup | null>(null);
   const hasCentered = useRef(false);
   const followRef = useRef(true); // la carte suit la voiture tant que l'utilisateur ne la déplace pas
   const onFollowChangeRef = useRef(onFollowChange);
@@ -97,6 +109,7 @@ export function TripMap({
       dashArray: '8 10',
     }).addTo(map);
     reportLayer.current = L.layerGroup().addTo(map);
+    cameraLayer.current = L.layerGroup().addTo(map);
 
     // Si l'utilisateur déplace la carte au doigt, on cesse de suivre la voiture.
     map.on('dragstart', () => {
@@ -287,6 +300,24 @@ export function TripMap({
         .addTo(layer);
     }
   }, [reports]);
+
+  // Radars photo / feux rouges officiels du Québec (position fixe, source gouvernementale).
+  useEffect(() => {
+    const layer = cameraLayer.current;
+    if (!layer) return;
+    layer.clearLayers();
+    for (const cam of speedCameras ?? []) {
+      const icon = L.divIcon({
+        className: 'camera-marker',
+        html: `<div class="camera-pin">${cameraEmoji(cam.deviceType)}</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      });
+      L.marker([cam.lat, cam.lng], { icon, interactive: true, keyboard: false })
+        .bindTooltip(`${cam.deviceType} — ${cam.description}`, { direction: 'top', offset: [0, -10] })
+        .addTo(layer);
+    }
+  }, [speedCameras]);
 
   return <div ref={containerRef} className="map" aria-label="Carte du trajet" />;
 }

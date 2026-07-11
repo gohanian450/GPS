@@ -26,7 +26,7 @@ function remainingAlongRoute(points: LatLng[], pos: LatLng): number {
   }
   return rem;
 }
-import type { Trip, EtaResult, LatLng, RouteResult, SearchSuggestion, Report } from './lib/types';
+import type { Trip, EtaResult, LatLng, RouteResult, SearchSuggestion, Report, SpeedCamera } from './lib/types';
 import {
   bestTrip,
   listTrips,
@@ -39,6 +39,8 @@ import {
   searchAddress,
   listReports,
   submitReport,
+  listSpeedCameras,
+  seedSpeedCamerasBatch,
 } from './lib/api';
 
 export default function App() {
@@ -71,6 +73,10 @@ export default function App() {
   // Signalements communautaires (police, accident, obstacle) — façon Waze.
   const [reports, setReports] = useState<Report[]>([]);
   const alertedReports = useRef<Set<string>>(new Set());
+
+  // Radars photo officiels du Québec (données gouvernementales statiques).
+  const [speedCameras, setSpeedCameras] = useState<SpeedCamera[]>([]);
+  const alertedCameras = useRef<Set<string>>(new Set());
 
   // Navigation tour-par-tour : index de la manœuvre courante
   const [navIndex, setNavIndex] = useState(0);
@@ -158,6 +164,54 @@ export default function App() {
       }
     }
   }, [state.position, state.tracking, reports, showToast]);
+
+  // Radars photo officiels (Québec) : chargés au démarrage. Si la base n'est
+  // pas encore complètement géocodée (premier démarrage de l'app en prod),
+  // on déclenche le géocodage progressif en arrière-plan (une seule fois,
+  // idempotent côté serveur) jusqu'à ce que tout soit prêt.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setSpeedCameras(await listSpeedCameras());
+      } catch {
+        return; // pas critique : l'app fonctionne sans les radars
+      }
+      let progressShown = false;
+      for (let i = 0; i < 30 && !cancelled; i++) {
+        let progress;
+        try {
+          progress = await seedSpeedCamerasBatch();
+        } catch {
+          break; // clé TomTom absente ou API indisponible : on abandonne silencieusement
+        }
+        if (progress.processedNow > 0) {
+          setSpeedCameras(await listSpeedCameras().catch(() => []));
+          if (!progressShown && !progress.done) {
+            progressShown = true;
+            showToast('Chargement des radars officiels du Québec…', 'ok');
+          }
+        }
+        if (progress.done) break;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Alerte de proximité (radars photo) pendant le suivi, une seule fois par radar.
+  useEffect(() => {
+    if (!state.tracking || !state.position || speedCameras.length === 0) return;
+    for (const cam of speedCameras) {
+      if (alertedCameras.current.has(cam.id)) continue;
+      if (haversineMeters(state.position, { lat: cam.lat, lng: cam.lng }) < 400) {
+        alertedCameras.current.add(cam.id);
+        showToast('📷 Radar photo à proximité', 'ok');
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(250);
+      }
+    }
+  }, [state.position, state.tracking, speedCameras, showToast]);
 
   // Position de biais pour l'autocomplétion (résultats proches en priorité).
   useEffect(() => {
@@ -548,6 +602,7 @@ export default function App() {
         onFollowChange={setFollowing}
         courseUp={state.tracking}
         reports={reports}
+        speedCameras={speedCameras}
       />
 
       <div className="ov-credit">© OpenStreetMap · Trafic TomTom</div>

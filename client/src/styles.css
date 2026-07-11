@@ -100,6 +100,21 @@ body {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
+.leaflet-div-icon.camera-marker {
+  background: transparent;
+  border: none;
+}
+
+.camera-pin {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  opacity: 0.9;
+}
+
 .car-rot {
   width: 38px;
   height: 38px;

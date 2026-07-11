@@ -43,6 +43,23 @@ export interface Report {
   created_at: number;
 }
 
+// Radar photo / feu rouge officiel (données gouvernementales, position fixe).
+export interface SpeedCamera {
+  id: string;
+  description: string;
+  municipality: string;
+  deviceType: string;
+  lat: number;
+  lng: number;
+}
+
+export interface SeedProgress {
+  total: number;
+  processedNow: number;
+  remaining: number;
+  done: boolean;
+}
+
 export interface NavInstruction {
   text: string;
   maneuver: string;

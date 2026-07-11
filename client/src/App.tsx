@@ -653,18 +653,28 @@ export default function App() {
               />
             )}
 
-            {/* #5 Réglage de l'alerte de vitesse */}
+            {/* #5 Alerte de vitesse : automatique si la limite réelle est connue,
+                sinon réglage manuel (repli quand TomTom n'a pas la donnée). */}
             <div className="ov-speedlimit">
-              <span className="muted small">Alerte de vitesse</span>
-              <div className="stepper">
-                <button onClick={() => setSpeedLimit((v) => Math.max(30, v - 10))} aria-label="Diminuer">
-                  −
-                </button>
-                <span className="stepper-val">{speedLimit} km/h</span>
-                <button onClick={() => setSpeedLimit((v) => Math.min(160, v + 10))} aria-label="Augmenter">
-                  +
-                </button>
-              </div>
+              {currentSpeedLimit != null ? (
+                <>
+                  <span className="muted small">Alerte de vitesse</span>
+                  <span className="auto-badge">Auto · {currentSpeedLimit} km/h</span>
+                </>
+              ) : (
+                <>
+                  <span className="muted small">Alerte de vitesse (limite réelle inconnue ici)</span>
+                  <div className="stepper">
+                    <button onClick={() => setSpeedLimit((v) => Math.max(30, v - 10))} aria-label="Diminuer">
+                      −
+                    </button>
+                    <span className="stepper-val">{speedLimit} km/h</span>
+                    <button onClick={() => setSpeedLimit((v) => Math.min(160, v + 10))} aria-label="Augmenter">
+                      +
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

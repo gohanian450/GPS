@@ -413,6 +413,16 @@ body {
   text-align: center;
 }
 
+.auto-badge {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--teal);
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+}
+
 /* ============ Zone basse (bottom sheet) ============ */
 .ov-bottom {
   position: absolute;

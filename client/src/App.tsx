@@ -27,6 +27,7 @@ export default function App() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [destCoords, setDestCoords] = useState<LatLng | null>(null);
+  const [originCoords, setOriginCoords] = useState<LatLng | null>(null);
 
   const wasTracking = useRef(false);
 
@@ -157,6 +158,7 @@ export default function App() {
           { enableHighAccuracy: true, timeout: 10000 }
         );
       });
+      setOriginCoords(origin);
 
       setRoute(await fetchRoute(origin, { lat: geo.lat, lng: geo.lng }));
     } catch (e) {
@@ -277,6 +279,7 @@ export default function App() {
             position={state.position}
             suggestionPath={best?.path ?? null}
             routePath={route?.points ?? null}
+            origin={originCoords}
             destination={destCoords}
             showTraffic={showTraffic}
           />

@@ -498,8 +498,8 @@ export default function App() {
       </div>
       )}
 
-      {/* Boutons flottants (droite) */}
-      <div className="ov-fabs">
+      {/* Boutons flottants (droite) — descendus sous le bandeau d'indications en navigation */}
+      <div className={`ov-fabs ${currentInstr ? 'ov-fabs--nav' : ''}`}>
         <button
           className={`fab ${showTraffic ? 'fab-on' : ''}`}
           onClick={() => setShowTraffic((v) => !v)}
@@ -551,25 +551,29 @@ export default function App() {
             </button>
           )}
 
+          {/* Résumé de navigation : reste visible même quand la feuille est réduite */}
+          {navSummary && (
+            <NavSummary
+              remainingMeters={navSummary.remainingMeters}
+              remainingSeconds={navSummary.remainingSeconds}
+              arrivalAt={navSummary.arrivalAt}
+            />
+          )}
+
           <div className="ov-sheet-body">
-            {navSummary ? (
-              <NavSummary
-                remainingMeters={navSummary.remainingMeters}
-                remainingSeconds={navSummary.remainingSeconds}
-                arrivalAt={navSummary.arrivalAt}
-              />
-            ) : routeLoading || route || routeError ? (
-              <RoutePanel
-                label={routeLabel}
-                route={route}
-                loading={routeLoading}
-                error={routeError}
-                arrivalAt={arrivalAt}
-                onClose={clearRoute}
-              />
-            ) : (
-              <SuggestionPanel best={best} eta={eta} etaError={etaError} loading={suggestionLoading} />
-            )}
+            {!navSummary &&
+              (routeLoading || route || routeError ? (
+                <RoutePanel
+                  label={routeLabel}
+                  route={route}
+                  loading={routeLoading}
+                  error={routeError}
+                  arrivalAt={arrivalAt}
+                  onClose={clearRoute}
+                />
+              ) : (
+                <SuggestionPanel best={best} eta={eta} etaError={etaError} loading={suggestionLoading} />
+              ))}
 
             {state.tracking && (
               <StatsPanel

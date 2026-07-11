@@ -245,6 +245,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  transition: top 0.2s ease;
+}
+
+/* En navigation, le bandeau de manœuvre occupe le haut : on descend les boutons. */
+.ov-fabs--nav {
+  top: calc(env(safe-area-inset-top, 0px) + 150px);
 }
 
 .fab {

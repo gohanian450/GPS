@@ -1,0 +1,19 @@
+{
+  "name": "RouteTrack — Suivi automobile",
+  "short_name": "RouteTrack",
+  "description": "Suivi de vitesse, itinéraires et navigation en direct.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0d0f",
+  "theme_color": "#0a0d0f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

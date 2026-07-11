@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#0a0d0f"/>
+  <!-- tracé de route -->
+  <path d="M150 380 C150 300 362 300 362 220 C362 150 200 160 200 110"
+        fill="none" stroke="#2dd4bf" stroke-width="26" stroke-linecap="round" stroke-dasharray="4 46"/>
+  <!-- destination -->
+  <circle cx="200" cy="104" r="26" fill="#ff4d4f" stroke="#0a0d0f" stroke-width="8"/>
+  <!-- voiture (vue de dessus, pointe vers le haut) -->
+  <g transform="translate(150 388) rotate(-20)">
+    <path d="M0 -46 L30 -10 V38 Q30 56 8 56 L-8 56 Q-30 56 -30 38 V-10 Z"
+          fill="#ffb020" stroke="#0a0d0f" stroke-width="8"/>
+    <rect x="-20" y="-8" width="40" height="26" rx="6" fill="#0a0d0f" fill-opacity="0.7"/>
+  </g>
+</svg>

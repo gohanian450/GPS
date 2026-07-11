@@ -50,6 +50,18 @@ export default function App() {
   // Navigation tour-par-tour : index de la manœuvre courante
   const [navIndex, setNavIndex] = useState(0);
 
+  // #1 Recentrer / suivi de la carte
+  const [following, setFollowing] = useState(true);
+  const [recenterNonce, setRecenterNonce] = useState(0);
+  // #2 Heure d'arrivée estimée (timestamp)
+  const [arrivalAt, setArrivalAt] = useState<number | null>(null);
+  // #5 Alerte de vitesse
+  const [speedLimit, setSpeedLimit] = useState(100);
+  const wasOver = useRef(false);
+  // #4 Recalcul automatique de l'itinéraire
+  const lastRecalc = useRef(0);
+  const recalcing = useRef(false);
+
   const wasTracking = useRef(false);
 
   const showToast = useCallback((text: string, kind: 'ok' | 'err') => {
@@ -132,6 +144,47 @@ export default function App() {
     }
     if (idx !== navIndex) setNavIndex(idx);
   }, [state.position, state.tracking, route, navIndex]);
+
+  // #4 Recalcul automatique si on s'écarte de l'itinéraire (> 60 m).
+  useEffect(() => {
+    const pos = state.position;
+    const pts = route?.points;
+    if (!state.tracking || !pos || !destCoords || !pts?.length) return;
+
+    let min = Infinity;
+    for (const p of pts) {
+      const d = haversineMeters(pos, p);
+      if (d < min) min = d;
+      if (min < 40) return; // toujours sur la route, rien à faire
+    }
+    const now = Date.now();
+    if (min > 60 && !recalcing.current && now - lastRecalc.current > 15000) {
+      recalcing.current = true;
+      lastRecalc.current = now;
+      showToast("Recalcul de l'itinéraire…", 'ok');
+      void (async () => {
+        try {
+          const r = await fetchRoute(pos, destCoords);
+          setRoute(r);
+          setOriginCoords(pos);
+          setArrivalAt(r.liveSeconds != null ? Date.now() + r.liveSeconds * 1000 : null);
+        } catch {
+          /* on réessaiera au prochain point */
+        } finally {
+          recalcing.current = false;
+        }
+      })();
+    }
+  }, [state.position, state.tracking, route, destCoords, showToast]);
+
+  // #5 Alerte de vitesse : vibration au moment où on dépasse la limite.
+  useEffect(() => {
+    const over = state.tracking && state.speedKmh > speedLimit;
+    if (over && !wasOver.current && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(300);
+    }
+    wasOver.current = over;
+  }, [state.speedKmh, speedLimit, state.tracking]);
 
   // Recherche de suggestion (débounce) quand l'utilisateur tape une destination.
   useEffect(() => {
@@ -241,7 +294,9 @@ export default function App() {
     try {
       const origin = await currentPosition();
       setOriginCoords(origin);
-      setRoute(await fetchRoute(origin, dest));
+      const r = await fetchRoute(origin, dest);
+      setRoute(r);
+      setArrivalAt(r.liveSeconds != null ? Date.now() + r.liveSeconds * 1000 : null);
     } catch (e) {
       setRouteError((e as Error).message);
     } finally {
@@ -274,7 +329,9 @@ export default function App() {
       const geo = await geocode(query, origin); // biaisé vers la position
       setDestCoords({ lat: geo.lat, lng: geo.lng });
       setRouteLabel(geo.label);
-      setRoute(await fetchRoute(origin, { lat: geo.lat, lng: geo.lng }));
+      const r = await fetchRoute(origin, { lat: geo.lat, lng: geo.lng });
+      setRoute(r);
+      setArrivalAt(r.liveSeconds != null ? Date.now() + r.liveSeconds * 1000 : null);
     } catch (e) {
       setRouteError((e as Error).message);
     } finally {
@@ -289,6 +346,7 @@ export default function App() {
     setRouteLabel('');
     setDestCoords(null);
     setOriginCoords(null);
+    setArrivalAt(null);
     setSheetCollapsed(false);
   };
 
@@ -341,6 +399,8 @@ export default function App() {
         origin={originCoords}
         destination={destCoords}
         showTraffic={showTraffic}
+        recenterNonce={recenterNonce}
+        onFollowChange={setFollowing}
       />
 
       {/* En navigation : bandeau de manœuvre en haut. Sinon : barre de recherche. */}
@@ -417,11 +477,22 @@ export default function App() {
         <button className="fab" onClick={() => setHistoryOpen(true)} title="Historique" aria-label="Historique">
           🕘
         </button>
+        {/* #1 Recentrer : apparaît quand on a déplacé la carte pendant le suivi */}
+        {state.tracking && !following && (
+          <button
+            className="fab fab-recenter"
+            onClick={() => setRecenterNonce((n) => n + 1)}
+            title="Recentrer sur ma voiture"
+            aria-label="Recentrer sur ma voiture"
+          >
+            🎯
+          </button>
+        )}
       </div>
 
-      {/* Pastille de vitesse (style Waze) pendant le suivi */}
+      {/* Pastille de vitesse (style Waze) pendant le suivi — rouge si limite dépassée */}
       {state.tracking && (
-        <div className="ov-speed">
+        <div className={`ov-speed ${state.speedKmh > speedLimit ? 'ov-speed--over' : ''}`}>
           <span className="ov-speed-num">{Math.round(state.speedKmh)}</span>
           <span className="ov-speed-unit">km/h</span>
         </div>
@@ -453,6 +524,7 @@ export default function App() {
                 route={route}
                 loading={routeLoading}
                 error={routeError}
+                arrivalAt={arrivalAt}
                 onClose={clearRoute}
               />
             ) : (
@@ -467,6 +539,20 @@ export default function App() {
                 maxSpeedKmh={state.maxSpeedKmh}
               />
             )}
+
+            {/* #5 Réglage de l'alerte de vitesse */}
+            <div className="ov-speedlimit">
+              <span className="muted small">Alerte de vitesse</span>
+              <div className="stepper">
+                <button onClick={() => setSpeedLimit((v) => Math.max(30, v - 10))} aria-label="Diminuer">
+                  −
+                </button>
+                <span className="stepper-val">{speedLimit} km/h</span>
+                <button onClick={() => setSpeedLimit((v) => Math.min(160, v + 10))} aria-label="Augmenter">
+                  +
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="ov-controls">

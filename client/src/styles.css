@@ -299,6 +299,64 @@ body {
   margin-top: 2px;
 }
 
+/* Dépassement de la limite : rouge + pulsation */
+.ov-speed--over {
+  border-color: var(--red);
+  animation: speed-pulse 0.9s ease-in-out infinite;
+}
+
+.ov-speed--over .ov-speed-num {
+  color: var(--red);
+}
+
+@keyframes speed-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 77, 79, 0.35);
+  }
+}
+
+.fab-recenter {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #062018;
+}
+
+/* #5 Réglage d'alerte de vitesse */
+.ov-speedlimit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stepper button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.stepper-val {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  min-width: 74px;
+  text-align: center;
+}
+
 /* ============ Zone basse (bottom sheet) ============ */
 .ov-bottom {
   position: absolute;

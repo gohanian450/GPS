@@ -34,7 +34,7 @@ export function TripMap({ path, position, suggestionPath, routePath, origin, des
     const map = L.map(containerRef.current, {
       center: MONTREAL,
       zoom: 13,
-      zoomControl: true,
+      zoomControl: false, // look épuré style Waze/Google Maps (zoom au pincement/molette)
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

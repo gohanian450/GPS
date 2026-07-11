@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { LatLng } from '../lib/types';
+import type { LatLng, Report } from '../lib/types';
 
 interface Props {
   path: LatLng[];
@@ -15,7 +15,14 @@ interface Props {
   recenterNonce?: number;
   onFollowChange?: (following: boolean) => void;
   courseUp?: boolean; // carte orientée dans le sens de la marche (mode navigation)
+  reports?: Report[];
 }
+
+const REPORT_EMOJI: Record<string, string> = {
+  police: '🚓',
+  accident: '⚠️',
+  obstacle: '🚧',
+};
 
 const MONTREAL: L.LatLngExpression = [45.5017, -73.5673];
 
@@ -47,6 +54,7 @@ export function TripMap({
   recenterNonce,
   onFollowChange,
   courseUp,
+  reports,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -57,6 +65,7 @@ export function TripMap({
   const originMarker = useRef<L.CircleMarker | null>(null);
   const marker = useRef<L.Marker | null>(null);
   const trafficLayer = useRef<L.TileLayer | null>(null);
+  const reportLayer = useRef<L.LayerGroup | null>(null);
   const hasCentered = useRef(false);
   const followRef = useRef(true); // la carte suit la voiture tant que l'utilisateur ne la déplace pas
   const onFollowChangeRef = useRef(onFollowChange);
@@ -87,6 +96,7 @@ export function TripMap({
       opacity: 0.85,
       dashArray: '8 10',
     }).addTo(map);
+    reportLayer.current = L.layerGroup().addTo(map);
 
     // Si l'utilisateur déplace la carte au doigt, on cesse de suivre la voiture.
     map.on('dragstart', () => {
@@ -257,6 +267,26 @@ export function TripMap({
       trafficLayer.current = null;
     }
   }, [showTraffic]);
+
+  // Signalements communautaires (police, accident, obstacle) — façon Waze.
+  useEffect(() => {
+    const layer = reportLayer.current;
+    if (!layer) return;
+    layer.clearLayers();
+    for (const r of reports ?? []) {
+      const emoji = REPORT_EMOJI[r.type] ?? '⚠️';
+      const icon = L.divIcon({
+        className: 'report-marker',
+        html: `<div class="report-pin">${emoji}</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      });
+      const ageMin = Math.max(0, Math.round((Date.now() - r.created_at) / 60000));
+      L.marker([r.lat, r.lng], { icon, interactive: true, keyboard: false })
+        .bindTooltip(`Signalé il y a ${ageMin} min`, { direction: 'top', offset: [0, -10] })
+        .addTo(layer);
+    }
+  }, [reports]);
 
   return <div ref={containerRef} className="map" aria-label="Carte du trajet" />;
 }

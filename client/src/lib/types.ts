@@ -33,6 +33,16 @@ export interface SearchSuggestion {
   lng: number;
 }
 
+export type ReportType = 'police' | 'accident' | 'obstacle';
+
+export interface Report {
+  id: string;
+  type: ReportType;
+  lat: number;
+  lng: number;
+  created_at: number;
+}
+
 export interface NavInstruction {
   text: string;
   maneuver: string;

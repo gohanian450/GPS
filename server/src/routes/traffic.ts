@@ -46,9 +46,11 @@ trafficRouter.get('/eta', async (req, res) => {
   }
   const [oLat, oLng, dLat, dLng] = coords;
 
+  // routeType=fastest (explicite) : privilégie toujours le temps de trajet le
+  // plus court selon le trafic en direct, plutôt que la distance ou l'énergie.
   const url =
     `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json` +
-    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all`;
+    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeType=fastest`;
 
   try {
     const r = await fetch(url);
@@ -181,6 +183,9 @@ trafficRouter.get('/route', async (req, res) => {
   // routeRepresentation=polyline → géométrie détaillée (le tracé suit la route).
   // avoid=ferries → évite les traversiers (sinon le trajet « passe dans l'eau »).
   // instructionsType=text → manœuvres de navigation (« tournez à droite… »).
+  // routeType=fastest → toujours le trajet le plus rapide selon le trafic en
+  // direct (même s'il traverse un tronçon congestionné, si c'est globalement
+  // plus rapide que les alternatives).
   // vehicleHeading (0-359) : sens dans lequel roule le véhicule. Évite que TomTom
   // fasse partir dans la direction opposée (demi-tour / contresens de sens unique).
   const heading = Number(req.query.vehicleHeading);
@@ -189,7 +194,7 @@ trafficRouter.get('/route', async (req, res) => {
 
   const base =
     `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json` +
-    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline&avoid=ferries` +
+    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline&avoid=ferries&routeType=fastest` +
     `&instructionsType=text&language=fr-FR${headingParam}`;
   // sectionType=speedLimit → renvoie les limites de vitesse par tronçon.
   // Si TomTom refuse ce paramètre, on retombe sur la requête de base (l'itinéraire

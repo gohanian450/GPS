@@ -3,6 +3,7 @@ import cors from 'cors';
 import { tripsRouter } from './routes/trips.js';
 import { trafficRouter } from './routes/traffic.js';
 import { reportsRouter } from './routes/reports.js';
+import { radarsRouter } from './routes/radars.js';
 import { ensureSchema } from './db.js';
 
 // Fabrique l'application Express. Utilisée à la fois par le serveur de dev
@@ -25,6 +26,7 @@ export function createApp() {
   app.use('/api/trips', tripsRouter);
   app.use('/api/traffic', trafficRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/radars', radarsRouter);
 
   // 404 JSON pour toute route API inconnue (plus clair côté client qu'un 404 brut).
   app.use('/api', (_req, res) => {

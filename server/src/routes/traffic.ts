@@ -4,9 +4,10 @@ export const trafficRouter = Router();
 
 // .trim() : évite un 400/403 si la clé a été collée avec un espace ou un retour
 // de ligne dans les variables d'environnement.
-const TOMTOM_KEY = process.env.TOMTOM_API_KEY?.trim();
+// Exportée pour être réutilisée par d'autres routes (ex. geocodage des radars).
+export const TOMTOM_KEY = process.env.TOMTOM_API_KEY?.trim();
 
-function ensureKey(res: import('express').Response): boolean {
+export function ensureKey(res: import('express').Response): boolean {
   if (!TOMTOM_KEY) {
     res.status(503).json({
       error:
@@ -18,7 +19,7 @@ function ensureKey(res: import('express').Response): boolean {
 }
 
 // Extrait le message d'erreur détaillé renvoyé par TomTom (utile pour un 400).
-async function tomtomErrorDetail(r: Response): Promise<string> {
+export async function tomtomErrorDetail(r: Response): Promise<string> {
   try {
     const text = await r.text();
     try {

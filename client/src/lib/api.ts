@@ -1,4 +1,15 @@
-import type { Trip, EtaResult, LatLng, GeocodeResult, RouteResult, SearchSuggestion, Report, ReportType } from './types';
+import type {
+  Trip,
+  EtaResult,
+  LatLng,
+  GeocodeResult,
+  RouteResult,
+  SearchSuggestion,
+  Report,
+  ReportType,
+  SpeedCamera,
+  SeedProgress,
+} from './types';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -103,4 +114,15 @@ export async function submitReport(type: ReportType, pos: LatLng): Promise<Repor
       body: JSON.stringify({ type, lat: pos.lat, lng: pos.lng }),
     })
   );
+}
+
+// Radars photo officiels du Québec (données gouvernementales, géocodées côté serveur).
+export async function listSpeedCameras(): Promise<SpeedCamera[]> {
+  return jsonOrThrow<SpeedCamera[]>(await fetch('/api/radars'));
+}
+
+// Géocode le prochain lot d'emplacements non encore traités (à appeler en
+// boucle jusqu'à `done: true`, une seule fois au premier démarrage de l'app).
+export async function seedSpeedCamerasBatch(): Promise<SeedProgress> {
+  return jsonOrThrow<SeedProgress>(await fetch('/api/radars/seed', { method: 'POST' }));
 }

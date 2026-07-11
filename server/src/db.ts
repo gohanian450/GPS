@@ -38,6 +38,20 @@ export function ensureSchema(): Promise<void> {
           )`
         )
       )
+      .then(() =>
+        db.execute(
+          // Radars photo / feux rouges officiels du Québec (données statiques,
+          // géocodées une seule fois via /api/radars/seed).
+          `CREATE TABLE IF NOT EXISTS speed_cameras (
+            id           TEXT PRIMARY KEY,
+            description  TEXT NOT NULL,
+            municipality TEXT NOT NULL,
+            device_type  TEXT NOT NULL,
+            lat          REAL NOT NULL,
+            lng          REAL NOT NULL
+          )`
+        )
+      )
       .then(() => undefined)
       .catch((err) => {
         schemaReady = null; // autorise une nouvelle tentative au prochain appel

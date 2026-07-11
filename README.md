@@ -27,6 +27,15 @@ style tableau de bord, en français québécois.
    sur **🧭 Itinéraire** : l'app géocode l'adresse, trace le chemin vers la
    destination sur la carte (ligne bleue) et affiche le temps de trajet estimé
    avec le trafic. ⚠️ Nécessite `TOMTOM_API_KEY`.
+6. **Signalements communautaires** — bouton 🚓 pendant le suivi pour signaler
+   la police à sa position (façon Waze) ; affiché sur la carte pour tous les
+   utilisateurs pendant 2 h, avec alerte de proximité.
+7. **Radars photo officiels du Québec** — emplacements des radars fixes,
+   mobiles et appareils de surveillance au feu rouge, source : [Données
+   Québec — jeu de données « radar-photo »](https://www.donneesquebec.ca/recherche/dataset/radar-photo)
+   (ministère des Transports et de la Mobilité durable du Québec). Les
+   positions GPS sont calculées une seule fois (géocodage TomTom, mis en
+   cache) au premier démarrage de l'app en production.
 
 ---
 
@@ -144,6 +153,11 @@ La table `trips` est créée automatiquement au premier appel API
 | `GET`   | `/api/traffic/route?originLat=&originLng=&destLat=&destLng=`| Itinéraire : temps + géométrie à tracer        |
 | `GET`   | `/api/traffic/eta?originLat=&originLng=&destLat=&destLng=`  | `{ liveSeconds, freeFlowSeconds }` (TomTom)    |
 | `GET`   | `/api/traffic/tile/:z/:x/:y`                                | Proxy des tuiles de trafic TomTom              |
+| `GET`   | `/api/traffic/search?q=&lat=&lng=`                          | Autocomplétion d'adresses (suggestions)        |
+| `POST`  | `/api/reports`                                              | Signaler police/accident/obstacle              |
+| `GET`   | `/api/reports`                                              | Signalements actifs (< 2 h)                    |
+| `GET`   | `/api/radars`                                               | Radars photo/feux rouges déjà géocodés         |
+| `POST`  | `/api/radars/seed`                                          | Géocode le prochain lot de radars (idempotent) |
 | `GET`   | `/api/health`                                               | État du serveur + présence de la clé TomTom    |
 
 ---

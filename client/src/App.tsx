@@ -4,9 +4,28 @@ import { TripMap } from './components/TripMap';
 import { SuggestionPanel } from './components/SuggestionPanel';
 import { RoutePanel } from './components/RoutePanel';
 import { NavBanner } from './components/NavBanner';
+import { NavSummary } from './components/NavSummary';
 import { TripHistory } from './components/TripHistory';
 import { useTracker } from './lib/useTracker';
 import { haversineMeters } from './lib/geo';
+
+// Distance restante le long de l'itinéraire depuis la position courante (m).
+function remainingAlongRoute(points: LatLng[], pos: LatLng): number {
+  let nearest = 0;
+  let min = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const d = haversineMeters(pos, points[i]);
+    if (d < min) {
+      min = d;
+      nearest = i;
+    }
+  }
+  let rem = min;
+  for (let i = nearest; i < points.length - 1; i++) {
+    rem += haversineMeters(points[i], points[i + 1]);
+  }
+  return rem;
+}
 import type { Trip, EtaResult, LatLng, RouteResult, SearchSuggestion } from './lib/types';
 import {
   bestTrip,
@@ -387,6 +406,21 @@ export default function App() {
       ? haversineMeters(state.position, { lat: currentInstr.lat, lng: currentInstr.lng })
       : null;
 
+  // Résumé de navigation : distance/temps restants + heure d'arrivée (live).
+  let navSummary: { remainingMeters: number; remainingSeconds: number | null; arrivalAt: number | null } | null =
+    null;
+  if (state.tracking && route?.points?.length && state.position) {
+    const remM = remainingAlongRoute(route.points, state.position);
+    const totalM = route.distanceMeters ?? remM;
+    const frac = totalM > 0 ? Math.min(1, remM / totalM) : 1;
+    const remSec = route.liveSeconds != null ? route.liveSeconds * frac : null;
+    navSummary = {
+      remainingMeters: remM,
+      remainingSeconds: remSec,
+      arrivalAt: remSec != null ? Date.now() + remSec * 1000 : null,
+    };
+  }
+
   return (
     <div className="app-map">
       {/* Carte plein écran en fond */}
@@ -490,18 +524,18 @@ export default function App() {
         )}
       </div>
 
-      {/* Pastille de vitesse (style Waze) pendant le suivi — rouge si limite dépassée */}
-      {state.tracking && (
-        <div className={`ov-speed ${state.speedKmh > speedLimit ? 'ov-speed--over' : ''}`}>
-          <span className="ov-speed-num">{Math.round(state.speedKmh)}</span>
-          <span className="ov-speed-unit">km/h</span>
-        </div>
-      )}
-
       {toast && <div className={`toast ${toast.kind === 'ok' ? 'toast-ok' : 'toast-err'}`}>{toast.text}</div>}
 
-      {/* Zone basse empilée : erreur → feuille d'info (style Google Maps) */}
+      {/* Zone basse empilée : vitesse → erreur → feuille d'info (style Waze/Google Maps) */}
       <div className="ov-bottom">
+        {/* Pastille de vitesse en bas à gauche (n'est plus cachée par les indications) */}
+        {state.tracking && (
+          <div className={`ov-speed ${state.speedKmh > speedLimit ? 'ov-speed--over' : ''}`}>
+            <span className="ov-speed-num">{Math.round(state.speedKmh)}</span>
+            <span className="ov-speed-unit">km/h</span>
+          </div>
+        )}
+
         {state.error && <div className="ov-banner">{state.error}</div>}
 
         <div className={`ov-sheet ${sheetCollapsed ? 'ov-sheet--collapsed' : ''}`}>
@@ -518,7 +552,13 @@ export default function App() {
           )}
 
           <div className="ov-sheet-body">
-            {routeLoading || route || routeError ? (
+            {navSummary ? (
+              <NavSummary
+                remainingMeters={navSummary.remainingMeters}
+                remainingSeconds={navSummary.remainingSeconds}
+                arrivalAt={navSummary.arrivalAt}
+              />
+            ) : routeLoading || route || routeError ? (
               <RoutePanel
                 label={routeLabel}
                 route={route}

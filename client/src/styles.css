@@ -266,14 +266,11 @@ body {
   border-color: var(--amber);
 }
 
-/* ============ Pastille de vitesse (Waze) ============ */
+/* ============ Pastille de vitesse (Waze) — en bas à gauche ============ */
 .ov-speed {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 76px);
-  left: 12px;
-  z-index: 1000;
-  width: 84px;
-  height: 84px;
+  align-self: flex-start;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   background: var(--panel);
   border: 3px solid var(--amber);
@@ -441,6 +438,26 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* Résumé de navigation : temps / km / arrivée restants */
+.ov-navsum {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ov-navsum-time {
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--teal);
+  line-height: 1;
+}
+
+.ov-navsum-sub {
+  font-size: 1.05rem;
+  color: var(--text);
 }
 
 /* En-tête de panneau avec bouton de fermeture */

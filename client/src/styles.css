@@ -70,14 +70,17 @@ body {
 }
 
 /* ============ Barre de recherche flottante ============ */
-.ov-search {
+.ov-search-wrap {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + 12px);
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 24px);
   max-width: 640px;
-  z-index: 1000;
+  z-index: 1500;
+}
+
+.ov-search {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -86,6 +89,61 @@ body {
   border-radius: 999px;
   padding: 0.45rem 0.6rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Liste d'autocomplétion */
+.ov-suggestions {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0.3rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.ov-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.98rem;
+  padding: 0.6rem 0.6rem;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.ov-suggestion:hover,
+.ov-suggestion:focus-visible {
+  background: var(--panel-2);
+}
+
+.ov-suggestion-pin {
+  flex: 0 0 auto;
+}
+
+.ov-suggestion-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.ov-search-clear {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
 .ov-search-icon {

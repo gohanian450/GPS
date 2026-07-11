@@ -26,6 +26,13 @@ export interface GeocodeResult {
   label: string;
 }
 
+export interface SearchSuggestion {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
+}
+
 export interface RouteResult {
   liveSeconds: number | null;
   freeFlowSeconds: number | null;

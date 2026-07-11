@@ -5,8 +5,18 @@ import { SuggestionPanel } from './components/SuggestionPanel';
 import { RoutePanel } from './components/RoutePanel';
 import { TripHistory } from './components/TripHistory';
 import { useTracker } from './lib/useTracker';
-import type { Trip, EtaResult, LatLng, RouteResult } from './lib/types';
-import { bestTrip, listTrips, saveTrip, deleteTrip, clearTrips, fetchEta, geocode, fetchRoute } from './lib/api';
+import type { Trip, EtaResult, LatLng, RouteResult, SearchSuggestion } from './lib/types';
+import {
+  bestTrip,
+  listTrips,
+  saveTrip,
+  deleteTrip,
+  clearTrips,
+  fetchEta,
+  geocode,
+  fetchRoute,
+  searchAddress,
+} from './lib/api';
 
 export default function App() {
   const { state, start, stop, reset } = useTracker();
@@ -30,6 +40,11 @@ export default function App() {
   const [destCoords, setDestCoords] = useState<LatLng | null>(null);
   const [originCoords, setOriginCoords] = useState<LatLng | null>(null);
 
+  // Autocomplétion d'adresses
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const biasPos = useRef<LatLng | null>(null);
+
   const wasTracking = useRef(false);
 
   const showToast = useCallback((text: string, kind: 'ok' | 'err') => {
@@ -48,6 +63,47 @@ export default function App() {
   useEffect(() => {
     refreshTrips();
   }, [refreshTrips]);
+
+  // Position de biais pour l'autocomplétion (résultats proches en priorité).
+  useEffect(() => {
+    if (state.position) biasPos.current = state.position;
+  }, [state.position]);
+
+  useEffect(() => {
+    if (!('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        biasPos.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      },
+      () => {},
+      { timeout: 8000 }
+    );
+  }, []);
+
+  // Autocomplétion d'adresses (débounce) pendant la frappe.
+  useEffect(() => {
+    const q = destination.trim();
+    if (q.length < 3 || state.tracking) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const res = await searchAddress(q, biasPos.current ?? undefined);
+        if (!cancelled) {
+          setSuggestions(res);
+          setShowSuggestions(true);
+        }
+      } catch {
+        if (!cancelled) setSuggestions([]);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [destination, state.tracking]);
 
   // Recherche de suggestion (débounce) quand l'utilisateur tape une destination.
   useEffect(() => {
@@ -136,34 +192,60 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.tracking]);
 
-  // Recherche l'adresse tapée, calcule l'itinéraire et le trace sur la carte.
+  const currentPosition = () =>
+    new Promise<LatLng>((resolve, reject) => {
+      if (!('geolocation' in navigator)) return reject(new Error('Géolocalisation non disponible.'));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => reject(new Error('Position actuelle indisponible. Autorisez la géolocalisation.')),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+
+  // Calcule et trace l'itinéraire vers une destination connue (coordonnées).
+  const computeRouteTo = async (dest: LatLng, label: string) => {
+    setShowSuggestions(false);
+    setRouteLoading(true);
+    setRouteError(null);
+    setRoute(null);
+    setDestCoords(dest);
+    setRouteLabel(label);
+    try {
+      const origin = await currentPosition();
+      setOriginCoords(origin);
+      setRoute(await fetchRoute(origin, dest));
+    } catch (e) {
+      setRouteError((e as Error).message);
+    } finally {
+      setRouteLoading(false);
+    }
+  };
+
+  // L'utilisateur choisit une adresse dans la liste d'autocomplétion.
+  const selectSuggestion = (s: SearchSuggestion) => {
+    setDestination(s.label);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    void computeRouteTo({ lat: s.lat, lng: s.lng }, s.label);
+  };
+
+  // Bouton 🧭 / Entrée : géocode l'adresse tapée puis trace l'itinéraire.
   const handleFindRoute = async () => {
     const query = destination.trim();
     if (!query) {
       showToast('Entrez une adresse ou une destination.', 'err');
       return;
     }
+    setShowSuggestions(false);
     setRouteLoading(true);
     setRouteError(null);
     setRoute(null);
     try {
-      // 1) Position actuelle d'abord (sert de départ ET de biais au géocodage).
-      const origin = await new Promise<LatLng>((resolve, reject) => {
-        if (!('geolocation' in navigator)) return reject(new Error('Géolocalisation non disponible.'));
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => reject(new Error('Position actuelle indisponible. Autorisez la géolocalisation.')),
-          { enableHighAccuracy: true, timeout: 10000 }
-        );
-      });
+      const origin = await currentPosition();
       setOriginCoords(origin);
-
-      // 2) Géocodage biaisé vers la position → adresse ambiguë résolue au plus proche.
-      const geo = await geocode(query, origin);
+      const geo = await geocode(query, origin); // biaisé vers la position
       setDestCoords({ lat: geo.lat, lng: geo.lng });
       setRouteLabel(geo.label);
-
-      // 3) Itinéraire.
       setRoute(await fetchRoute(origin, { lat: geo.lat, lng: geo.lng }));
     } catch (e) {
       setRouteError((e as Error).message);
@@ -224,29 +306,60 @@ export default function App() {
         showTraffic={showTraffic}
       />
 
-      {/* Barre de recherche flottante (style Google Maps) */}
-      <div className="ov-search">
-        <span className="ov-search-icon">🔎</span>
-        <input
-          type="text"
-          className="ov-search-input"
-          placeholder="Où allez-vous ?"
-          value={destination}
-          onChange={(e) => setDestination(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !state.tracking) handleFindRoute();
-          }}
-          disabled={state.tracking}
-        />
-        <button
-          className="ov-search-go"
-          onClick={handleFindRoute}
-          disabled={state.tracking || routeLoading}
-          title="Trouver l'itinéraire"
-          aria-label="Trouver l'itinéraire"
-        >
-          🧭
-        </button>
+      {/* Barre de recherche flottante + autocomplétion (style Google Maps) */}
+      <div className="ov-search-wrap">
+        <div className="ov-search">
+          <span className="ov-search-icon">🔎</span>
+          <input
+            type="text"
+            className="ov-search-input"
+            placeholder="Où allez-vous ?"
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !state.tracking) handleFindRoute();
+              if (e.key === 'Escape') setShowSuggestions(false);
+            }}
+            disabled={state.tracking}
+          />
+          {destination && !state.tracking && (
+            <button
+              className="ov-search-clear"
+              onClick={() => {
+                setDestination('');
+                setSuggestions([]);
+                setShowSuggestions(false);
+              }}
+              aria-label="Effacer"
+              title="Effacer"
+            >
+              ✕
+            </button>
+          )}
+          <button
+            className="ov-search-go"
+            onClick={handleFindRoute}
+            disabled={state.tracking || routeLoading}
+            title="Trouver l'itinéraire"
+            aria-label="Trouver l'itinéraire"
+          >
+            🧭
+          </button>
+        </div>
+
+        {showSuggestions && suggestions.length > 0 && !state.tracking && (
+          <ul className="ov-suggestions">
+            {suggestions.map((s) => (
+              <li key={s.id}>
+                <button className="ov-suggestion" onClick={() => selectSuggestion(s)}>
+                  <span className="ov-suggestion-pin">📍</span>
+                  <span className="ov-suggestion-label">{s.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Boutons flottants (droite) */}

@@ -1,4 +1,4 @@
-import type { Trip, EtaResult, LatLng, GeocodeResult, RouteResult } from './types';
+import type { Trip, EtaResult, LatLng, GeocodeResult, RouteResult, SearchSuggestion } from './types';
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -67,6 +67,19 @@ export async function geocode(query: string, near?: LatLng): Promise<GeocodeResu
     params.set('lng', String(near.lng));
   }
   return jsonOrThrow<GeocodeResult>(await fetch(`/api/traffic/geocode?${params.toString()}`));
+}
+
+// Autocomplétion d'adresses : plusieurs suggestions à choisir.
+export async function searchAddress(query: string, near?: LatLng): Promise<SearchSuggestion[]> {
+  const params = new URLSearchParams({ q: query });
+  if (near) {
+    params.set('lat', String(near.lat));
+    params.set('lng', String(near.lng));
+  }
+  const data = await jsonOrThrow<{ results: SearchSuggestion[] }>(
+    await fetch(`/api/traffic/search?${params.toString()}`)
+  );
+  return data.results;
 }
 
 // Calcule l'itinéraire (temps avec trafic + géométrie à tracer sur la carte).

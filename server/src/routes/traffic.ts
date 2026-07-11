@@ -118,6 +118,52 @@ trafficRouter.get('/geocode', async (req, res) => {
   }
 });
 
+// GET /api/traffic/search?q=&lat=&lng= — autocomplétion d'adresses (plusieurs
+// suggestions), pour ne pas avoir à taper l'adresse complète.
+trafficRouter.get('/search', async (req, res) => {
+  if (!ensureKey(res)) return;
+
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (q.length < 3) {
+    return res.json({ results: [] });
+  }
+
+  let url =
+    `https://api.tomtom.com/search/2/search/${encodeURIComponent(q)}.json` +
+    `?key=${TOMTOM_KEY}&typeahead=true&limit=6&language=fr-CA`;
+
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    url += `&lat=${lat}&lon=${lng}`; // priorise les résultats proches
+  }
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) {
+      const detail = await tomtomErrorDetail(r);
+      console.error(`TomTom Search (autocomplete) ${r.status}: ${detail}`);
+      return res.status(502).json({ error: `TomTom Search (${r.status}) : ${detail}` });
+    }
+    const data = (await r.json()) as any;
+    const results = (data?.results ?? [])
+      .filter((it: any) => it?.position)
+      .map((it: any) => {
+        const addr = it.address?.freeformAddress ?? '';
+        const name = it.poi?.name;
+        return {
+          id: it.id ?? `${it.position.lat},${it.position.lon}`,
+          label: name ? `${name} — ${addr}` : addr,
+          lat: it.position.lat,
+          lng: it.position.lon,
+        };
+      });
+    res.json({ results });
+  } catch {
+    res.status(502).json({ error: 'API TomTom indisponible.' });
+  }
+});
+
 // GET /api/traffic/route?originLat=&originLng=&destLat=&destLng=
 // Retourne le temps (avec trafic) ET la géométrie de l'itinéraire à tracer.
 // On garde le jeu de paramètres minimal (comme /eta) : par défaut, TomTom

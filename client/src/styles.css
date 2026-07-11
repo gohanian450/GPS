@@ -227,6 +227,73 @@ body {
   gap: 0.75rem;
 }
 
+/* Poignée de réduction/agrandissement (style Google Maps) */
+.ov-sheet-handle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.1rem 0 0.35rem;
+  margin: -0.3rem 0 0;
+}
+
+.ov-sheet-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0.6;
+}
+
+.ov-sheet-chevron {
+  font-size: 0.7rem;
+  color: var(--muted);
+  line-height: 1;
+}
+
+/* Réduit : on masque le contenu, on garde poignée + contrôles */
+.ov-sheet--collapsed .ov-sheet-body {
+  display: none;
+}
+
+.ov-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* En-tête de panneau avec bouton de fermeture */
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.panel-header-row .panel-title {
+  margin: 0;
+}
+
+.panel-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.panel-close:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+
 /* Les panneaux internes deviennent transparents dans la feuille */
 .ov-sheet .panel {
   background: transparent;

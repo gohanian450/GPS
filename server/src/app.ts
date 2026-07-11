@@ -24,6 +24,11 @@ export function createApp() {
   app.use('/api/trips', tripsRouter);
   app.use('/api/traffic', trafficRouter);
 
+  // 404 JSON pour toute route API inconnue (plus clair côté client qu'un 404 brut).
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'Route API introuvable.' });
+  });
+
   // Gestion d'erreurs globale
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Erreur serveur :', err);

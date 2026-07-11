@@ -216,6 +216,7 @@ export default function App() {
       <TripMap
         path={state.path}
         position={state.position}
+        heading={state.heading}
         suggestionPath={best?.path ?? null}
         routePath={route?.points ?? null}
         origin={originCoords}

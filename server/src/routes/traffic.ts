@@ -181,10 +181,16 @@ trafficRouter.get('/route', async (req, res) => {
   // routeRepresentation=polyline → géométrie détaillée (le tracé suit la route).
   // avoid=ferries → évite les traversiers (sinon le trajet « passe dans l'eau »).
   // instructionsType=text → manœuvres de navigation (« tournez à droite… »).
+  // vehicleHeading (0-359) : sens dans lequel roule le véhicule. Évite que TomTom
+  // fasse partir dans la direction opposée (demi-tour / contresens de sens unique).
+  const heading = Number(req.query.vehicleHeading);
+  const headingParam =
+    Number.isFinite(heading) ? `&vehicleHeading=${((Math.round(heading) % 360) + 360) % 360}` : '';
+
   const base =
     `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json` +
     `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline&avoid=ferries` +
-    `&instructionsType=text&language=fr-FR`;
+    `&instructionsType=text&language=fr-FR${headingParam}`;
   // sectionType=speedLimit → renvoie les limites de vitesse par tronçon.
   // Si TomTom refuse ce paramètre, on retombe sur la requête de base (l'itinéraire
   // fonctionne toujours, sans limites de vitesse).

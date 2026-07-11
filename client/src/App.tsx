@@ -85,6 +85,8 @@ export default function App() {
   routeRef.current = route;
   const destRef = useRef(destCoords);
   destRef.current = destCoords;
+  const headingRef = useRef<number | null>(null);
+  headingRef.current = state.heading;
 
   const wasTracking = useRef(false);
 
@@ -188,7 +190,7 @@ export default function App() {
       showToast("Recalcul de l'itinéraire…", 'ok');
       void (async () => {
         try {
-          const r = await fetchRoute(pos, destCoords);
+          const r = await fetchRoute(pos, destCoords, headingRef.current);
           setRoute(r);
           setOriginCoords(pos);
           setArrivalAt(r.liveSeconds != null ? Date.now() + r.liveSeconds * 1000 : null);
@@ -228,7 +230,7 @@ export default function App() {
 
       try {
         recalcing.current = true;
-        const fresh = await fetchRoute(pos, dest);
+        const fresh = await fetchRoute(pos, dest, headingRef.current);
         // On ne bascule que si le nouveau trajet fait gagner au moins 1 minute.
         if (fresh.liveSeconds != null && fresh.liveSeconds + 60 < curRemainingSec) {
           const saved = Math.max(1, Math.round((curRemainingSec - fresh.liveSeconds) / 60));
@@ -354,7 +356,7 @@ export default function App() {
     try {
       const origin = await currentPosition();
       setOriginCoords(origin);
-      const r = await fetchRoute(origin, dest);
+      const r = await fetchRoute(origin, dest, headingRef.current);
       setRoute(r);
       setArrivalAt(r.liveSeconds != null ? Date.now() + r.liveSeconds * 1000 : null);
     } catch (e) {
@@ -389,7 +391,7 @@ export default function App() {
       const geo = await geocode(query, origin); // biaisé vers la position
       setDestCoords({ lat: geo.lat, lng: geo.lng });
       setRouteLabel(geo.label);
-      const r = await fetchRoute(origin, { lat: geo.lat, lng: geo.lng });
+      const r = await fetchRoute(origin, { lat: geo.lat, lng: geo.lng }, headingRef.current);
       setRoute(r);
       setArrivalAt(r.liveSeconds != null ? Date.now() + r.liveSeconds * 1000 : null);
     } catch (e) {

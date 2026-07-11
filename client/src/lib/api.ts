@@ -83,6 +83,9 @@ export async function searchAddress(query: string, near?: LatLng): Promise<Searc
 }
 
 // Calcule l'itinéraire (temps avec trafic + géométrie à tracer sur la carte).
-export async function fetchRoute(origin: LatLng, dest: LatLng): Promise<RouteResult> {
-  return jsonOrThrow<RouteResult>(await fetch(`/api/traffic/route?${routeParams(origin, dest)}`));
+// `heading` (0-359) = sens de marche : évite les départs à contresens.
+export async function fetchRoute(origin: LatLng, dest: LatLng, heading?: number | null): Promise<RouteResult> {
+  let qs = routeParams(origin, dest);
+  if (heading != null && Number.isFinite(heading)) qs += `&vehicleHeading=${Math.round(heading)}`;
+  return jsonOrThrow<RouteResult>(await fetch(`/api/traffic/route?${qs}`));
 }

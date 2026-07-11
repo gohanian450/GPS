@@ -80,6 +80,11 @@ export default function App() {
   // #4 Recalcul automatique de l'itinéraire
   const lastRecalc = useRef(0);
   const recalcing = useRef(false);
+  // Refs vers les dernières valeurs (pour le minuteur de re-vérification trafic)
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const destRef = useRef(destCoords);
+  destRef.current = destCoords;
 
   const wasTracking = useRef(false);
 
@@ -204,6 +209,42 @@ export default function App() {
     }
     wasOver.current = over;
   }, [state.speedKmh, speedLimit, state.tracking]);
+
+  // Re-vérification du trafic pendant le trajet : toutes les 90 s, on recalcule
+  // le meilleur itinéraire et on bascule dessus s'il fait gagner du temps.
+  useEffect(() => {
+    if (!state.tracking || !destCoords) return;
+    const id = setInterval(async () => {
+      const pos = biasPos.current;
+      const dest = destRef.current;
+      const cur = routeRef.current;
+      if (!pos || !dest || !cur?.points?.length || recalcing.current) return;
+
+      // Temps restant estimé sur l'itinéraire actuel.
+      const remM = remainingAlongRoute(cur.points, pos);
+      const totalM = cur.distanceMeters ?? remM;
+      const curRemainingSec =
+        cur.liveSeconds != null ? cur.liveSeconds * Math.min(1, totalM > 0 ? remM / totalM : 1) : Infinity;
+
+      try {
+        recalcing.current = true;
+        const fresh = await fetchRoute(pos, dest);
+        // On ne bascule que si le nouveau trajet fait gagner au moins 1 minute.
+        if (fresh.liveSeconds != null && fresh.liveSeconds + 60 < curRemainingSec) {
+          const saved = Math.max(1, Math.round((curRemainingSec - fresh.liveSeconds) / 60));
+          setRoute(fresh);
+          setOriginCoords(pos);
+          setArrivalAt(Date.now() + fresh.liveSeconds * 1000);
+          showToast(`🚦 Itinéraire plus rapide (−${saved} min)`, 'ok');
+        }
+      } catch {
+        /* on réessaiera au prochain tour */
+      } finally {
+        recalcing.current = false;
+      }
+    }, 90000);
+    return () => clearInterval(id);
+  }, [state.tracking, destCoords, showToast]);
 
   // Recherche de suggestion (débounce) quand l'utilisateur tape une destination.
   useEffect(() => {

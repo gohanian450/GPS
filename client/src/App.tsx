@@ -3,8 +3,10 @@ import { StatsPanel } from './components/StatsPanel';
 import { TripMap } from './components/TripMap';
 import { SuggestionPanel } from './components/SuggestionPanel';
 import { RoutePanel } from './components/RoutePanel';
+import { NavBanner } from './components/NavBanner';
 import { TripHistory } from './components/TripHistory';
 import { useTracker } from './lib/useTracker';
+import { haversineMeters } from './lib/geo';
 import type { Trip, EtaResult, LatLng, RouteResult, SearchSuggestion } from './lib/types';
 import {
   bestTrip,
@@ -44,6 +46,9 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const biasPos = useRef<LatLng | null>(null);
+
+  // Navigation tour-par-tour : index de la manœuvre courante
+  const [navIndex, setNavIndex] = useState(0);
 
   const wasTracking = useRef(false);
 
@@ -104,6 +109,29 @@ export default function App() {
       clearTimeout(handle);
     };
   }, [destination, state.tracking]);
+
+  // Réinitialise le guidage quand un nouvel itinéraire est calculé.
+  useEffect(() => {
+    setNavIndex(0);
+  }, [route]);
+
+  // Avance la manœuvre courante à mesure qu'on s'en approche (< 30 m).
+  useEffect(() => {
+    const list = route?.instructions;
+    if (!state.tracking || !list?.length || !state.position) return;
+    let idx = navIndex;
+    while (idx < list.length - 1) {
+      const ins = list[idx];
+      if (ins.lat == null || ins.lng == null) {
+        idx++;
+        continue;
+      }
+      const d = haversineMeters(state.position, { lat: ins.lat, lng: ins.lng });
+      if (d < 30) idx++;
+      else break;
+    }
+    if (idx !== navIndex) setNavIndex(idx);
+  }, [state.position, state.tracking, route, navIndex]);
 
   // Recherche de suggestion (débounce) quand l'utilisateur tape une destination.
   useEffect(() => {
@@ -292,6 +320,15 @@ export default function App() {
     }
   };
 
+  // Manœuvre de navigation courante (pendant le suivi).
+  const navList = route?.instructions ?? [];
+  const currentInstr =
+    state.tracking && navList.length ? navList[Math.min(navIndex, navList.length - 1)] : null;
+  const navDistance =
+    currentInstr && currentInstr.lat != null && currentInstr.lng != null && state.position
+      ? haversineMeters(state.position, { lat: currentInstr.lat, lng: currentInstr.lng })
+      : null;
+
   return (
     <div className="app-map">
       {/* Carte plein écran en fond */}
@@ -306,7 +343,11 @@ export default function App() {
         showTraffic={showTraffic}
       />
 
+      {/* En navigation : bandeau de manœuvre en haut. Sinon : barre de recherche. */}
+      {currentInstr && <NavBanner instruction={currentInstr} distanceMeters={navDistance} />}
+
       {/* Barre de recherche flottante + autocomplétion (style Google Maps) */}
+      {!state.tracking && (
       <div className="ov-search-wrap">
         <div className="ov-search">
           <span className="ov-search-icon">🔎</span>
@@ -361,6 +402,7 @@ export default function App() {
           </ul>
         )}
       </div>
+      )}
 
       {/* Boutons flottants (droite) */}
       <div className="ov-fabs">

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { LatLng } from './types';
-import { haversineMeters } from './geo';
+import { haversineMeters, bearing } from './geo';
 
 export interface TrackerState {
   tracking: boolean;
@@ -11,6 +11,7 @@ export interface TrackerState {
   maxSpeedKmh: number;
   path: LatLng[];
   position: LatLng | null;
+  heading: number | null; // cap (degrés depuis le nord) pour orienter la voiture
   accuracy: number | null;
   error: string | null;
 }
@@ -24,6 +25,7 @@ const INITIAL: TrackerState = {
   maxSpeedKmh: 0,
   path: [],
   position: null,
+  heading: null,
   accuracy: null,
   error: null,
 };
@@ -112,6 +114,16 @@ export function useTracker() {
         if (!Number.isFinite(instant) || instant > 250) instant = 0;
         if (instant > maxSpeed.current) maxSpeed.current = instant;
 
+        // Cap : boussole GPS de l'appareil si dispo et en mouvement, sinon
+        // calculé à partir du déplacement entre deux points.
+        let heading: number | null = null;
+        const devHeading = pos.coords.heading;
+        if (typeof devHeading === 'number' && !Number.isNaN(devHeading) && (pos.coords.speed ?? 0) > 0.5) {
+          heading = devHeading;
+        } else if (lastPoint.current && addedMeters >= MIN_MOVE_METERS) {
+          heading = bearing(lastPoint.current.pos, current);
+        }
+
         lastPoint.current = { pos: current, time: now };
 
         setState((s) => {
@@ -127,6 +139,7 @@ export function useTracker() {
             maxSpeedKmh: maxSpeed.current,
             path,
             position: current,
+            heading: heading ?? s.heading, // conserve le dernier cap connu à l'arrêt
             accuracy: pos.coords.accuracy ?? null,
             error: null,
           };

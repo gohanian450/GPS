@@ -6,6 +6,7 @@ import type { LatLng } from '../lib/types';
 interface Props {
   path: LatLng[];
   position: LatLng | null;
+  heading?: number | null;
   suggestionPath?: LatLng[] | null;
   routePath?: LatLng[] | null;
   origin?: LatLng | null;
@@ -15,7 +16,23 @@ interface Props {
 
 const MONTREAL: L.LatLngExpression = [45.5017, -73.5673];
 
-export function TripMap({ path, position, suggestionPath, routePath, origin, destination, showTraffic }: Props) {
+// Voiture vue de dessus, pointant vers le haut (nord) ; on la fait pivoter selon le cap.
+const CAR_SVG = `
+<svg width="38" height="38" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="19" cy="19" r="17" fill="#0a0d0f" fill-opacity="0.5"/>
+  <path d="M19 5 L25 12 V27 Q25 31 21 31 H17 Q13 31 13 27 V12 Z" fill="#2dd4bf" stroke="#0a0d0f" stroke-width="1.6"/>
+  <rect x="15" y="13.5" width="8" height="5.5" rx="1.4" fill="#0a0d0f" fill-opacity="0.65"/>
+  <circle cx="19" cy="27" r="1.5" fill="#0a0d0f" fill-opacity="0.5"/>
+</svg>`;
+
+const carIcon = L.divIcon({
+  className: 'car-marker',
+  html: `<div class="car-rot">${CAR_SVG}</div>`,
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+});
+
+export function TripMap({ path, position, heading, suggestionPath, routePath, origin, destination, showTraffic }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const liveLine = useRef<L.Polyline | null>(null);
@@ -23,7 +40,7 @@ export function TripMap({ path, position, suggestionPath, routePath, origin, des
   const routeLine = useRef<L.Polyline | null>(null);
   const destMarker = useRef<L.CircleMarker | null>(null);
   const originMarker = useRef<L.CircleMarker | null>(null);
-  const marker = useRef<L.CircleMarker | null>(null);
+  const marker = useRef<L.Marker | null>(null);
   const trafficLayer = useRef<L.TileLayer | null>(null);
   const hasCentered = useRef(false);
 
@@ -63,7 +80,7 @@ export function TripMap({ path, position, suggestionPath, routePath, origin, des
     };
   }, []);
 
-  // Mise à jour du tracé en direct + marqueur.
+  // Mise à jour du tracé en direct + marqueur voiture (suivi navigation).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !liveLine.current) return;
@@ -74,24 +91,24 @@ export function TripMap({ path, position, suggestionPath, routePath, origin, des
     if (position) {
       const ll: L.LatLngTuple = [position.lat, position.lng];
       if (!marker.current) {
-        marker.current = L.circleMarker(ll, {
-          radius: 8,
-          color: '#0a0d0f',
-          weight: 2,
-          fillColor: '#2dd4bf',
-          fillOpacity: 1,
-        }).addTo(map);
+        marker.current = L.marker(ll, { icon: carIcon, interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map);
       } else {
         marker.current.setLatLng(ll);
       }
+      // Oriente la voiture selon le cap.
+      const el = marker.current.getElement()?.querySelector('.car-rot') as HTMLElement | null;
+      if (el && typeof heading === 'number') {
+        el.style.transform = `rotate(${heading}deg)`;
+      }
+      // Suivi façon navigation : zoom serré au premier point, puis la carte suit la voiture.
       if (!hasCentered.current) {
-        map.setView(ll, 15);
+        map.setView(ll, 17);
         hasCentered.current = true;
       } else {
-        map.panTo(ll, { animate: true });
+        map.panTo(ll, { animate: true, duration: 0.5 });
       }
     }
-  }, [path, position]);
+  }, [path, position, heading]);
 
   // Tracé de suggestion (pointillé).
   useEffect(() => {

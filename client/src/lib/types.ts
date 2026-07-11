@@ -42,6 +42,12 @@ export interface NavInstruction {
   lng: number | null;
 }
 
+export interface SpeedLimitSection {
+  startPointIndex: number;
+  endPointIndex: number;
+  speedKmh: number;
+}
+
 export interface RouteResult {
   liveSeconds: number | null;
   freeFlowSeconds: number | null;
@@ -49,4 +55,5 @@ export interface RouteResult {
   distanceMeters: number | null;
   points: LatLng[];
   instructions: NavInstruction[];
+  speedLimits?: SpeedLimitSection[];
 }

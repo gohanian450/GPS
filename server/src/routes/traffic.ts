@@ -181,13 +181,26 @@ trafficRouter.get('/route', async (req, res) => {
   // routeRepresentation=polyline → géométrie détaillée (le tracé suit la route).
   // avoid=ferries → évite les traversiers (sinon le trajet « passe dans l'eau »).
   // instructionsType=text → manœuvres de navigation (« tournez à droite… »).
-  const url =
+  // vehicleHeading (0-359) : sens dans lequel roule le véhicule. Évite que TomTom
+  // fasse partir dans la direction opposée (demi-tour / contresens de sens unique).
+  const heading = Number(req.query.vehicleHeading);
+  const headingParam =
+    Number.isFinite(heading) ? `&vehicleHeading=${((Math.round(heading) % 360) + 360) % 360}` : '';
+
+  const base =
     `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json` +
     `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline&avoid=ferries` +
-    `&instructionsType=text&language=fr-FR`;
+    `&instructionsType=text&language=fr-FR${headingParam}`;
+  // sectionType=speedLimit → renvoie les limites de vitesse par tronçon.
+  // Si TomTom refuse ce paramètre, on retombe sur la requête de base (l'itinéraire
+  // fonctionne toujours, sans limites de vitesse).
+  const url = `${base}&sectionType=speedLimit`;
 
   try {
-    const r = await fetch(url);
+    let r = await fetch(url);
+    if (!r.ok && r.status === 400) {
+      r = await fetch(base); // repli sans limites de vitesse
+    }
     if (!r.ok) {
       const detail = await tomtomErrorDetail(r);
       console.error(`TomTom Routing (route) ${r.status}: ${detail}`);
@@ -216,6 +229,17 @@ trafficRouter.get('/route', async (req, res) => {
       lat: it.point?.latitude ?? null,
       lng: it.point?.longitude ?? null,
     }));
+    // Limites de vitesse par tronçon (si disponibles). On lit le champ numérique
+    // quel qu'en soit le nom exact selon la version de l'API.
+    const speedLimits = (route.sections ?? [])
+      .filter((s: any) => /speed/i.test(String(s.sectionType ?? '')))
+      .map((s: any) => ({
+        startPointIndex: s.startPointIndex ?? 0,
+        endPointIndex: s.endPointIndex ?? 0,
+        speedKmh:
+          s.maxSpeedLimitInKmh ?? s.maxSpeedLimit ?? s.speedLimit ?? s.effectiveSpeedInKmh ?? s.maxSpeedInKmh ?? null,
+      }))
+      .filter((s: any) => typeof s.speedKmh === 'number' && s.speedKmh > 0);
     res.json({
       liveSeconds: summary.travelTimeInSeconds ?? null,
       freeFlowSeconds: summary.noTrafficTravelTimeInSeconds ?? summary.travelTimeInSeconds ?? null,
@@ -223,6 +247,7 @@ trafficRouter.get('/route', async (req, res) => {
       distanceMeters: summary.lengthInMeters ?? null,
       points,
       instructions,
+      speedLimits,
     });
   } catch {
     res.status(502).json({ error: 'API TomTom indisponible.' });

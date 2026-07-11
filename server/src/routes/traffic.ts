@@ -2,7 +2,9 @@ import { Router } from 'express';
 
 export const trafficRouter = Router();
 
-const TOMTOM_KEY = process.env.TOMTOM_API_KEY;
+// .trim() : évite un 400/403 si la clé a été collée avec un espace ou un retour
+// de ligne dans les variables d'environnement.
+const TOMTOM_KEY = process.env.TOMTOM_API_KEY?.trim();
 
 function ensureKey(res: import('express').Response): boolean {
   if (!TOMTOM_KEY) {
@@ -13,6 +15,23 @@ function ensureKey(res: import('express').Response): boolean {
     return false;
   }
   return true;
+}
+
+// Extrait le message d'erreur détaillé renvoyé par TomTom (utile pour un 400).
+async function tomtomErrorDetail(r: Response): Promise<string> {
+  try {
+    const text = await r.text();
+    try {
+      const j = JSON.parse(text);
+      const msg = j?.detailedError?.message || j?.error?.description || j?.message;
+      if (msg) return String(msg);
+    } catch {
+      /* corps non-JSON */
+    }
+    return text.slice(0, 200) || `HTTP ${r.status}`;
+  } catch {
+    return `HTTP ${r.status}`;
+  }
 }
 
 // GET /api/traffic/eta?originLat=&originLng=&destLat=&destLng=
@@ -34,7 +53,9 @@ trafficRouter.get('/eta', async (req, res) => {
   try {
     const r = await fetch(url);
     if (!r.ok) {
-      return res.status(502).json({ error: `TomTom Routing a répondu ${r.status}.` });
+      const detail = await tomtomErrorDetail(r);
+      console.error(`TomTom Routing (eta) ${r.status}: ${detail}`);
+      return res.status(502).json({ error: `TomTom Routing (${r.status}) : ${detail}` });
     }
     const data = (await r.json()) as any;
     const summary = data?.routes?.[0]?.summary;
@@ -46,7 +67,7 @@ trafficRouter.get('/eta', async (req, res) => {
       freeFlowSeconds: summary.noTrafficTravelTimeInSeconds ?? summary.travelTimeInSeconds ?? null,
       trafficDelaySeconds: summary.trafficDelayInSeconds ?? 0,
     });
-  } catch (err) {
+  } catch {
     res.status(502).json({ error: 'API TomTom indisponible.' });
   }
 });
@@ -67,7 +88,9 @@ trafficRouter.get('/geocode', async (req, res) => {
   try {
     const r = await fetch(url);
     if (!r.ok) {
-      return res.status(502).json({ error: `TomTom Search a répondu ${r.status}.` });
+      const detail = await tomtomErrorDetail(r);
+      console.error(`TomTom Search (geocode) ${r.status}: ${detail}`);
+      return res.status(502).json({ error: `TomTom Search (${r.status}) : ${detail}` });
     }
     const data = (await r.json()) as any;
     const first = data?.results?.[0];
@@ -86,6 +109,8 @@ trafficRouter.get('/geocode', async (req, res) => {
 
 // GET /api/traffic/route?originLat=&originLng=&destLat=&destLng=
 // Retourne le temps (avec trafic) ET la géométrie de l'itinéraire à tracer.
+// On garde le jeu de paramètres minimal (comme /eta) : par défaut, TomTom
+// renvoie déjà la géométrie de l'itinéraire (legs[].points).
 trafficRouter.get('/route', async (req, res) => {
   if (!ensureKey(res)) return;
 
@@ -98,12 +123,14 @@ trafficRouter.get('/route', async (req, res) => {
 
   const url =
     `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json` +
-    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all&routeRepresentation=polyline`;
+    `?key=${TOMTOM_KEY}&traffic=true&computeTravelTimeFor=all`;
 
   try {
     const r = await fetch(url);
     if (!r.ok) {
-      return res.status(502).json({ error: `TomTom Routing a répondu ${r.status}.` });
+      const detail = await tomtomErrorDetail(r);
+      console.error(`TomTom Routing (route) ${r.status}: ${detail}`);
+      return res.status(502).json({ error: `TomTom Routing (${r.status}) : ${detail}` });
     }
     const data = (await r.json()) as any;
     const route = data?.routes?.[0];

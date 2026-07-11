@@ -6,9 +6,10 @@ interface Props {
   route: RouteResult | null;
   loading: boolean;
   error: string | null;
+  onClose?: () => void;
 }
 
-export function RoutePanel({ label, route, loading, error }: Props) {
+export function RoutePanel({ label, route, loading, error, onClose }: Props) {
   if (!loading && !route && !error) return null;
 
   let trafficBadge: { text: string; cls: string } | null = null;
@@ -21,7 +22,14 @@ export function RoutePanel({ label, route, loading, error }: Props) {
 
   return (
     <div className="panel suggestion">
-      <h3 className="panel-title">🧭 Itinéraire</h3>
+      <div className="panel-header-row">
+        <h3 className="panel-title">🧭 Itinéraire</h3>
+        {onClose && (
+          <button className="panel-close" onClick={onClose} aria-label="Fermer l'itinéraire" title="Fermer">
+            ✕
+          </button>
+        )}
+      </div>
 
       {loading && <p className="muted">Calcul de l'itinéraire…</p>}
       {error && <p className="error-text">{error}</p>}

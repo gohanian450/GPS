@@ -19,6 +19,7 @@ export default function App() {
   const [etaError, setEtaError] = useState<string | null>(null);
   const [showTraffic, setShowTraffic] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [sheetCollapsed, setSheetCollapsed] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: 'ok' | 'err' } | null>(null);
 
   // Itinéraire vers une adresse recherchée.
@@ -171,6 +172,16 @@ export default function App() {
     }
   };
 
+  // Ferme complètement la section itinéraire (et retire les marqueurs de la carte).
+  const clearRoute = () => {
+    setRoute(null);
+    setRouteError(null);
+    setRouteLabel('');
+    setDestCoords(null);
+    setOriginCoords(null);
+    setSheetCollapsed(false);
+  };
+
   const handleStart = () => {
     if (!destination.trim()) {
       showToast('Entrez une destination avant de démarrer.', 'err');
@@ -266,21 +277,41 @@ export default function App() {
       <div className="ov-bottom">
         {state.error && <div className="ov-banner">{state.error}</div>}
 
-        <div className="ov-sheet">
-          {routeLoading || route || routeError ? (
-            <RoutePanel label={routeLabel} route={route} loading={routeLoading} error={routeError} />
-          ) : (
-            <SuggestionPanel best={best} eta={eta} etaError={etaError} loading={suggestionLoading} />
+        <div className={`ov-sheet ${sheetCollapsed ? 'ov-sheet--collapsed' : ''}`}>
+          {(routeLoading || route || routeError || best || suggestionLoading || state.tracking) && (
+            <button
+              className="ov-sheet-handle"
+              onClick={() => setSheetCollapsed((v) => !v)}
+              title={sheetCollapsed ? 'Afficher les infos' : 'Réduire pour voir la carte'}
+              aria-label={sheetCollapsed ? 'Afficher les infos' : 'Réduire pour voir la carte'}
+            >
+              <span className="ov-sheet-grip" />
+              <span className="ov-sheet-chevron">{sheetCollapsed ? '▲' : '▼'}</span>
+            </button>
           )}
 
-          {state.tracking && (
-            <StatsPanel
-              distanceKm={state.distanceKm}
-              durationMs={state.durationMs}
-              avgSpeedKmh={state.avgSpeedKmh}
-              maxSpeedKmh={state.maxSpeedKmh}
-            />
-          )}
+          <div className="ov-sheet-body">
+            {routeLoading || route || routeError ? (
+              <RoutePanel
+                label={routeLabel}
+                route={route}
+                loading={routeLoading}
+                error={routeError}
+                onClose={clearRoute}
+              />
+            ) : (
+              <SuggestionPanel best={best} eta={eta} etaError={etaError} loading={suggestionLoading} />
+            )}
+
+            {state.tracking && (
+              <StatsPanel
+                distanceKm={state.distanceKm}
+                durationMs={state.durationMs}
+                avgSpeedKmh={state.avgSpeedKmh}
+                maxSpeedKmh={state.maxSpeedKmh}
+              />
+            )}
+          </div>
 
           <div className="ov-controls">
             {!state.tracking ? (

@@ -18,6 +18,32 @@ export function ensureKey(res: import('express').Response): boolean {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Cache mémoire des tuiles de trafic (par instance de fonction). Le trafic est
+// identique pour tous les utilisateurs : on ne rappelle TomTom qu'une fois par
+// tuile toutes les 2 min. Sur Vercel, l'en-tête s-maxage ci-dessous fait en
+// plus que le CDN serve la tuile depuis le cache réseau (0 appel TomTom, 0
+// invocation de fonction) pendant la même durée.
+const TILE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const TILE_CACHE_MAX = 600; // plafond d'entrées pour borner la mémoire
+const tileCache = new Map<string, { buf: Buffer; ts: number }>();
+
+function getCachedTile(key: string): Buffer | null {
+  const hit = tileCache.get(key);
+  if (hit && Date.now() - hit.ts < TILE_TTL_MS) return hit.buf;
+  if (hit) tileCache.delete(key); // expirée
+  return null;
+}
+
+function setCachedTile(key: string, buf: Buffer): void {
+  if (tileCache.size >= TILE_CACHE_MAX) {
+    // Évince l'entrée la plus ancienne (Map conserve l'ordre d'insertion).
+    const oldest = tileCache.keys().next().value;
+    if (oldest !== undefined) tileCache.delete(oldest);
+  }
+  tileCache.set(key, { buf, ts: Date.now() });
+}
+
 // Extrait le message d'erreur détaillé renvoyé par TomTom (utile pour un 400).
 export async function tomtomErrorDetail(r: Response): Promise<string> {
   try {
@@ -111,6 +137,9 @@ trafficRouter.get('/geocode', async (req, res) => {
     if (!first?.position) {
       return res.status(404).json({ error: 'Adresse introuvable.' });
     }
+    // Une adresse → coordonnées est stable : cache CDN d'une heure pour
+    // éviter de re-géocoder les mêmes adresses (économie de requêtes TomTom).
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
     res.json({
       lat: first.position.lat,
       lng: first.position.lon,
@@ -269,6 +298,20 @@ trafficRouter.get('/tile/:z/:x/:y', async (req, res) => {
     return res.status(400).json({ error: 'Indices de tuile invalides.' });
   }
 
+  // Cache CDN (Vercel) : s-maxage=120 → le réseau sert la tuile 2 min sans
+  // rappeler la fonction ni TomTom ; stale-while-revalidate lisse le rafraîchissement.
+  const cacheHeader = 'public, max-age=120, s-maxage=120, stale-while-revalidate=300';
+  const key = `${z}/${x}/${y}`;
+
+  // 1) Cache mémoire (utile en local et sur une instance « chaude »).
+  const cached = getCachedTile(key);
+  if (cached) {
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', cacheHeader);
+    res.setHeader('X-Cache', 'HIT');
+    return res.send(cached);
+  }
+
   const url =
     `https://api.tomtom.com/traffic/map/4/tile/flow/relative/${z}/${x}/${y}.png` +
     `?key=${TOMTOM_KEY}`;
@@ -279,8 +322,10 @@ trafficRouter.get('/tile/:z/:x/:y', async (req, res) => {
       return res.status(502).end();
     }
     const buf = Buffer.from(await r.arrayBuffer());
+    setCachedTile(key, buf);
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Cache-Control', cacheHeader);
+    res.setHeader('X-Cache', 'MISS');
     res.send(buf);
   } catch {
     res.status(502).end();

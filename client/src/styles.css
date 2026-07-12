@@ -48,7 +48,8 @@ body {
   border-radius: 0;
   z-index: 0;
   transform-origin: 50% 50%;
-  transition: transform 0.3s ease-out;
+  /* Rotation course-up pilotée image par image (rAF) : pas de transition CSS. */
+  will-change: transform;
 }
 
 /* Mode navigation : conteneur agrandi pour couvrir les coins quand la carte tourne */
@@ -115,12 +116,13 @@ body {
   opacity: 0.9;
 }
 
+/* Rotation pilotée image par image (requestAnimationFrame) : pas de
+   transition CSS, sinon elle lutterait contre l'animation. */
 .car-rot {
   width: 38px;
   height: 38px;
   display: grid;
   place-items: center;
-  transition: transform 0.3s ease-out;
   will-change: transform;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }

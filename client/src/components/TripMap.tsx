@@ -70,8 +70,10 @@ export function TripMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const liveLine = useRef<L.Polyline | null>(null);
+  const liveCasing = useRef<L.Polyline | null>(null);
   const suggestLine = useRef<L.Polyline | null>(null);
   const routeLine = useRef<L.Polyline | null>(null);
+  const routeCasing = useRef<L.Polyline | null>(null);
   const destMarker = useRef<L.CircleMarker | null>(null);
   const originMarker = useRef<L.CircleMarker | null>(null);
   const marker = useRef<L.Marker | null>(null);
@@ -80,6 +82,12 @@ export function TripMap({
   const cameraLayer = useRef<L.LayerGroup | null>(null);
   const hasCentered = useRef(false);
   const followRef = useRef(true); // la carte suit la voiture tant que l'utilisateur ne la déplace pas
+  // Animation fluide de la voiture : position/cap affichés (interpolés) + rAF en cours.
+  const dispPos = useRef<{ lat: number; lng: number } | null>(null);
+  const dispHeading = useRef(0);
+  const rafId = useRef<number | null>(null);
+  const courseUpRef = useRef(false);
+  courseUpRef.current = !!courseUp;
   const onFollowChangeRef = useRef(onFollowChange);
   onFollowChangeRef.current = onFollowChange;
 
@@ -99,14 +107,20 @@ export function TripMap({
       maxZoom: 19,
     }).addTo(map);
 
-    // Itinéraire planifié vers l'adresse (ligne pleine bleu navigation).
-    routeLine.current = L.polyline([], { color: '#4d9fff', weight: 6, opacity: 0.85 }).addTo(map);
-    liveLine.current = L.polyline([], { color: '#2dd4bf', weight: 5, opacity: 0.9 }).addTo(map);
+    // Itinéraire planifié : contour foncé + ligne bleue par-dessus, bouts et
+    // angles arrondis (style Google Maps, doux plutôt que « sec »).
+    const soft: L.PolylineOptions = { lineCap: 'round', lineJoin: 'round' };
+    routeCasing.current = L.polyline([], { ...soft, color: '#123a63', weight: 10, opacity: 0.9 }).addTo(map);
+    routeLine.current = L.polyline([], { ...soft, color: '#4d9fff', weight: 5, opacity: 1 }).addTo(map);
+    // Tracé parcouru en direct : halo léger + ligne sarcelle.
+    liveCasing.current = L.polyline([], { ...soft, color: '#0a0d0f', weight: 8, opacity: 0.35 }).addTo(map);
+    liveLine.current = L.polyline([], { ...soft, color: '#2dd4bf', weight: 4, opacity: 0.95 }).addTo(map);
     suggestLine.current = L.polyline([], {
+      ...soft,
       color: '#ffb020',
       weight: 4,
       opacity: 0.85,
-      dashArray: '8 10',
+      dashArray: '1 12', // pointillé en petits points ronds, plus délicat
     }).addTo(map);
     reportLayer.current = L.layerGroup().addTo(map);
     cameraLayer.current = L.layerGroup().addTo(map);
@@ -131,41 +145,80 @@ export function TripMap({
   }, []);
 
   // Mise à jour du tracé en direct + marqueur voiture (suivi navigation).
+  // La voiture GLISSE d'un point GPS au suivant (interpolation ~0,9 s) au lieu
+  // de sauter, et sa rotation prend toujours le plus court chemin angulaire.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !liveLine.current) return;
 
     const latlngs = path.map((p) => [p.lat, p.lng] as L.LatLngTuple);
     liveLine.current.setLatLngs(latlngs);
+    liveCasing.current?.setLatLngs(latlngs);
 
-    if (position) {
+    if (!position) return;
+
+    const applyFrame = (lat: number, lng: number, h: number) => {
+      marker.current?.setLatLng([lat, lng]);
+      const el = marker.current?.getElement()?.querySelector('.car-rot') as HTMLElement | null;
+      if (el) el.style.transform = `rotate(${h}deg)`;
+      // Mode « course-up » : la carte tourne pour que la route reste devant,
+      // synchronisée avec la voiture dans la même frame.
+      if (courseUpRef.current && containerRef.current) {
+        containerRef.current.style.transform = `rotate(${-h}deg)`;
+      }
+      // La carte suit la voiture image par image → défilement parfaitement fluide.
+      if (followRef.current && hasCentered.current) {
+        map.setView([lat, lng], map.getZoom(), { animate: false });
+      }
+    };
+
+    const targetHeading = typeof heading === 'number' ? heading : dispHeading.current;
+
+    // Premier point : on se place directement (rien à animer).
+    if (!marker.current || !dispPos.current) {
       const ll: L.LatLngTuple = [position.lat, position.lng];
       if (!marker.current) {
         marker.current = L.marker(ll, { icon: carIcon, interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map);
-      } else {
-        marker.current.setLatLng(ll);
       }
-      // Oriente la voiture selon le cap.
-      const el = marker.current.getElement()?.querySelector('.car-rot') as HTMLElement | null;
-      if (el && typeof heading === 'number') {
-        el.style.transform = `rotate(${heading}deg)`;
-      }
-      // Suivi façon navigation : zoom serré au premier point, puis la carte suit
-      // la voiture — sauf si l'utilisateur a déplacé la carte manuellement.
+      dispPos.current = { ...position };
+      dispHeading.current = targetHeading;
       if (!hasCentered.current) {
         map.setView(ll, 17);
         hasCentered.current = true;
-      } else if (followRef.current) {
-        map.panTo(ll, { animate: true, duration: 0.5 });
       }
-
-      // Mode « course-up » : on tourne la carte pour que le sens de la marche
-      // pointe vers le haut (on voit toujours la route devant).
-      if (courseUp && containerRef.current && typeof heading === 'number') {
-        containerRef.current.style.transform = `rotate(${-heading}deg)`;
-      }
+      applyFrame(position.lat, position.lng, targetHeading);
+      return;
     }
-  }, [path, position, heading, courseUp]);
+
+    // Animation : de la position affichée actuelle vers le nouveau point GPS.
+    if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+    const from = { ...dispPos.current };
+    const fromH = dispHeading.current;
+    // Plus court chemin angulaire (ex. 350° → 10° tourne de +20°, pas −340°).
+    const deltaH = ((targetHeading - fromH + 540) % 360) - 180;
+    const start = performance.now();
+    const DURATION = 900; // ≈ cadence des mises à jour GPS → mouvement continu
+
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / DURATION);
+      const lat = from.lat + (position.lat - from.lat) * t;
+      const lng = from.lng + (position.lng - from.lng) * t;
+      const h = fromH + deltaH * t;
+      dispPos.current = { lat, lng };
+      dispHeading.current = ((h % 360) + 360) % 360;
+      applyFrame(lat, lng, h);
+      if (t < 1) rafId.current = requestAnimationFrame(step);
+      else rafId.current = null;
+    };
+    rafId.current = requestAnimationFrame(step);
+
+    return () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+    };
+  }, [path, position, heading]);
 
   // Active/désactive le mode navigation (carte agrandie + rotation + suivi verrouillé).
   useEffect(() => {
@@ -222,6 +275,7 @@ export function TripMap({
 
     const latlngs = (routePath ?? []).map((p) => [p.lat, p.lng] as L.LatLngTuple);
     routeLine.current.setLatLngs(latlngs);
+    routeCasing.current?.setLatLngs(latlngs);
 
     const upsertMarker = (
       ref: typeof destMarker,

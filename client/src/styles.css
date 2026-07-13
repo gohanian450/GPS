@@ -1,15 +1,32 @@
+/* ============================================================================
+   RouteTrack — design « verre et néon »
+   Surfaces en verre dépoli (backdrop-filter), dégradé signature sarcelle→bleu,
+   halos lumineux doux, grands rayons. Tous les noms de classes sont inchangés.
+   ========================================================================== */
+
 :root {
-  --bg: #0a0d0f;
-  --panel: #12171a;
-  --panel-2: #171e22;
-  --border: #232c31;
+  --bg: #05070a;
+  --glass: rgba(14, 20, 26, 0.68);
+  --glass-strong: rgba(12, 17, 22, 0.86);
+  --glass-brd: rgba(255, 255, 255, 0.09);
+  --glass-hi: rgba(255, 255, 255, 0.05);
+  --panel-2: rgba(255, 255, 255, 0.045);
+  --border: rgba(255, 255, 255, 0.08);
   --amber: #ffb020;
   --teal: #2dd4bf;
-  --red: #ff4d4f;
-  --text: #e6edf1;
-  --muted: #8a97a3;
+  --cyan: #22d3ee;
+  --blue: #4d9fff;
+  --red: #ff4d5e;
+  --text: #eef4f8;
+  --muted: #8fa0ae;
+  --grad: linear-gradient(135deg, #2dd4bf 0%, #22d3ee 55%, #4d9fff 100%);
+  --grad-amber: linear-gradient(135deg, #ffb020, #ff8a3d);
+  --grad-red: linear-gradient(135deg, #ff4d5e, #ff2e63);
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   --sans: 'Rajdhani', system-ui, sans-serif;
+  --r-lg: 24px;
+  --r-md: 16px;
+  --r-sm: 12px;
 }
 
 * {
@@ -32,11 +49,24 @@ body {
   overflow: hidden;
 }
 
+/* Surface de verre réutilisable (appliquée composant par composant). */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ============ Carte plein écran ============ */
 .app-map {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  background: var(--bg);
 }
 
 .map {
@@ -63,151 +93,67 @@ body {
   height: 142%;
 }
 
-/* Crédit OpenStreetMap en surimpression (le contrôle Leaflet est désactivé) */
+.leaflet-container {
+  background: #070b0f;
+}
+
+/* Voile subtil sur les bords : donne de la profondeur à la carte. */
+.app-map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 62%, rgba(3, 5, 8, 0.55) 100%);
+}
+
 .ov-credit {
   position: absolute;
   bottom: 2px;
-  right: 4px;
+  right: 6px;
   z-index: 500;
-  font-size: 0.62rem;
-  color: var(--muted);
-  background: rgba(10, 13, 15, 0.5);
-  padding: 1px 5px;
-  border-radius: 5px;
+  font-size: 0.6rem;
+  letter-spacing: 0.3px;
+  color: rgba(143, 160, 174, 0.75);
+  background: rgba(5, 7, 10, 0.45);
+  padding: 1px 7px;
+  border-radius: 999px;
   pointer-events: none;
-}
-
-.leaflet-container {
-  background: #0d1215;
-}
-
-/* Marqueur voiture (suivi navigation) */
-.leaflet-div-icon.car-marker {
-  background: transparent;
-  border: none;
-}
-
-.leaflet-div-icon.report-marker {
-  background: transparent;
-  border: none;
-}
-
-.report-pin {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  font-size: 1.3rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
-}
-
-.leaflet-div-icon.camera-marker {
-  background: transparent;
-  border: none;
-}
-
-.camera-pin {
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  font-size: 1.05rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
-  opacity: 0.9;
-}
-
-/* Rotation pilotée image par image (requestAnimationFrame) : pas de
-   transition CSS, sinon elle lutterait contre l'animation. */
-.car-rot {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  will-change: transform;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  backdrop-filter: blur(6px);
 }
 
 /* ============ Barre de recherche flottante ============ */
 .ov-search-wrap {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 24px);
+  width: calc(100% - 28px);
   max-width: 640px;
   z-index: 1500;
+  animation: rise-in 0.35s ease-out;
 }
 
 .ov-search {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  gap: 0.55rem;
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--glass-brd);
+  border-top-color: rgba(255, 255, 255, 0.16);
   border-radius: 999px;
-  padding: 0.45rem 0.6rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-}
-
-/* Liste d'autocomplétion */
-.ov-suggestions {
-  list-style: none;
-  margin: 0.4rem 0 0;
-  padding: 0.3rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-.ov-suggestion {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: 0.98rem;
-  padding: 0.6rem 0.6rem;
-  border-radius: 9px;
-  cursor: pointer;
-}
-
-.ov-suggestion:hover,
-.ov-suggestion:focus-visible {
-  background: var(--panel-2);
-}
-
-.ov-suggestion-pin {
-  flex: 0 0 auto;
-}
-
-.ov-suggestion-label {
-  flex: 1;
-  min-width: 0;
-}
-
-.ov-search-clear {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: var(--panel-2);
-  color: var(--muted);
-  font-size: 0.8rem;
-  cursor: pointer;
+  padding: 0.5rem 0.55rem 0.5rem 0.9rem;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 var(--glass-hi);
 }
 
 .ov-search-icon {
   font-size: 1rem;
-  opacity: 0.8;
-  padding-left: 0.35rem;
+  opacity: 0.75;
 }
 
 .ov-search-input {
@@ -218,77 +164,182 @@ body {
   outline: none;
   color: var(--text);
   font-family: var(--sans);
-  font-size: 1.05rem;
+  font-size: 1.08rem;
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
 .ov-search-input::placeholder {
   color: var(--muted);
+  font-weight: 400;
 }
 
 .ov-search-input:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .ov-search-go {
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 999px;
   border: none;
-  background: var(--amber);
-  color: #1a1204;
+  background: var(--grad-amber);
+  color: #221302;
   font-size: 1.2rem;
   cursor: pointer;
   display: grid;
   place-items: center;
+  box-shadow: 0 4px 18px rgba(255, 156, 32, 0.45);
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+.ov-search-go:not(:disabled):active {
+  transform: scale(0.94);
 }
 
 .ov-search-go:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+.ov-search-clear {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ov-search-clear:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+/* Liste d'autocomplétion — verre, entrées aérées */
+.ov-suggestions {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0.35rem;
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--glass-brd);
+  border-radius: var(--r-lg);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  max-height: 50vh;
+  overflow-y: auto;
+  animation: rise-in 0.22s ease-out;
+}
+
+.ov-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.7rem 0.75rem;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.ov-suggestion:hover,
+.ov-suggestion:focus-visible {
+  background: rgba(45, 212, 191, 0.09);
+}
+
+.ov-suggestion-pin {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.ov-suggestion-label {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ============ Bandeau de navigation (manœuvre) ============ */
 .ov-nav {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 24px);
+  width: calc(100% - 28px);
   max-width: 640px;
   z-index: 1500;
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  background: linear-gradient(180deg, #14343a, #0f2529);
-  border: 1px solid #1f4a52;
-  border-radius: 16px;
-  padding: 0.75rem 1rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  gap: 1rem;
+  background: var(--glass-strong);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--glass-brd);
+  border-radius: var(--r-lg);
+  padding: 0.85rem 1.1rem;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6), inset 0 1px 0 var(--glass-hi);
+  overflow: hidden;
+  animation: rise-in 0.3s ease-out;
+}
+
+/* Filet lumineux dégradé sur le bord gauche du bandeau. */
+.ov-nav::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--grad);
+  box-shadow: 0 0 18px rgba(45, 212, 191, 0.55);
 }
 
 .ov-nav-icon {
-  font-size: 2rem;
+  font-size: 1.9rem;
   line-height: 1;
   flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: rgba(45, 212, 191, 0.1);
+  border: 1px solid rgba(45, 212, 191, 0.25);
 }
 
 .ov-nav-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  gap: 0.05rem;
 }
 
 .ov-nav-dist {
   font-family: var(--mono);
-  font-size: 1.5rem;
+  font-size: 1.55rem;
   font-weight: 700;
-  color: var(--teal);
   line-height: 1.1;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .ov-nav-instr {
   font-size: 1.05rem;
+  font-weight: 500;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -297,74 +348,74 @@ body {
 /* ============ Boutons flottants (FAB) ============ */
 .ov-fabs {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 76px);
-  right: 12px;
+  top: calc(env(safe-area-inset-top, 0px) + 82px);
+  right: 14px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  transition: top 0.2s ease;
+  gap: 0.65rem;
+  transition: top 0.25s ease;
 }
 
-/* En navigation, le bandeau de manœuvre occupe le haut : on descend les boutons. */
 .ov-fabs--nav {
-  top: calc(env(safe-area-inset-top, 0px) + 150px);
+  top: calc(env(safe-area-inset-top, 0px) + 156px);
 }
 
 .fab {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--panel);
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
   color: var(--text);
   font-size: 1.25rem;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 var(--glass-hi);
   display: grid;
   place-items: center;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.fab:active {
+  transform: scale(0.92);
 }
 
 .fab-on {
-  background: var(--amber);
-  border-color: var(--amber);
+  background: var(--grad-amber);
+  border-color: transparent;
+  box-shadow: 0 6px 22px rgba(255, 156, 32, 0.5);
 }
 
-/* ============ Vitesse + limite (Waze) — en bas à gauche ============ */
+.fab-recenter {
+  background: var(--grad);
+  border-color: transparent;
+  color: #04211d;
+  box-shadow: 0 6px 22px rgba(45, 212, 191, 0.5);
+}
+
+.fab-report {
+  border-color: rgba(255, 77, 94, 0.55);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(255, 77, 94, 0.25);
+}
+
+/* ============ Vitesse + limite — bas à gauche ============ */
 .ov-speedrow {
   align-self: flex-start;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Panneau de limite de vitesse (style européen : cercle blanc, bord rouge) */
-.ov-limit {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: #fff;
-  border: 5px solid var(--red);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-
-.ov-limit span {
-  color: #111;
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 1.3rem;
+  align-items: flex-end;
+  gap: 0.6rem;
 }
 
 .ov-speed {
-  align-self: flex-start;
-  width: 78px;
-  height: 78px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
-  background: var(--panel);
-  border: 3px solid var(--amber);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  background:
+    radial-gradient(closest-side, rgba(10, 14, 18, 0.92) 78%, transparent 79%),
+    conic-gradient(from 210deg, #2dd4bf, #22d3ee, #4d9fff, #2dd4bf);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 24px rgba(45, 212, 191, 0.35);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -373,90 +424,65 @@ body {
 }
 
 .ov-speed-num {
-  font-size: 1.9rem;
+  font-size: 1.95rem;
   font-weight: 700;
   line-height: 1;
-  color: var(--amber);
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .ov-speed-unit {
-  font-size: 0.6rem;
-  letter-spacing: 1px;
+  font-size: 0.58rem;
+  letter-spacing: 2px;
   color: var(--muted);
-  margin-top: 2px;
+  margin-top: 3px;
+  text-transform: uppercase;
 }
 
-/* Dépassement de la limite : rouge + pulsation */
+/* Dépassement : l'anneau et le chiffre passent au rouge, pulsation du halo. */
 .ov-speed--over {
-  border-color: var(--red);
+  background:
+    radial-gradient(closest-side, rgba(18, 8, 10, 0.94) 78%, transparent 79%),
+    conic-gradient(from 210deg, #ff4d5e, #ff2e63, #ff8a3d, #ff4d5e);
   animation: speed-pulse 0.9s ease-in-out infinite;
 }
 
 .ov-speed--over .ov-speed-num {
-  color: var(--red);
+  background: var(--grad-red);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 @keyframes speed-pulse {
   0%,
   100% {
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 77, 94, 0.35);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(255, 77, 79, 0.35);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 34px rgba(255, 77, 94, 0.75);
   }
 }
 
-.fab-recenter {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #062018;
+/* Panneau de limite : reste un vrai panneau routier (lisibilité). */
+.ov-limit {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #fff;
+  border: 5px solid #e03131;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
 }
 
-.fab-report {
-  background: var(--panel);
-  border-color: var(--red);
-}
-
-/* #5 Réglage d'alerte de vitesse */
-.ov-speedlimit {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.stepper button {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  color: var(--text);
-  font-size: 1.1rem;
-  cursor: pointer;
-}
-
-.stepper-val {
+.ov-limit span {
+  color: #14181c;
   font-family: var(--mono);
-  font-size: 0.95rem;
-  min-width: 74px;
-  text-align: center;
-}
-
-.auto-badge {
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  color: var(--teal);
-  background: rgba(45, 212, 191, 0.12);
-  border: 1px solid rgba(45, 212, 191, 0.4);
-  border-radius: 999px;
-  padding: 0.3rem 0.7rem;
+  font-weight: 700;
+  font-size: 1.25rem;
 }
 
 /* ============ Zone basse (bottom sheet) ============ */
@@ -466,11 +492,11 @@ body {
   right: 0;
   bottom: 0;
   z-index: 1000;
-  padding: 0.75rem;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  padding: 0.8rem;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.8rem);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.55rem;
   pointer-events: none;
 }
 
@@ -479,62 +505,65 @@ body {
 }
 
 .ov-banner {
-  background: rgba(255, 77, 79, 0.16);
-  color: #ffd7d8;
-  border: 1px solid rgba(255, 77, 79, 0.5);
-  border-radius: 12px;
-  padding: 0.6rem 0.85rem;
+  background: rgba(255, 77, 94, 0.14);
+  color: #ffd9dd;
+  border: 1px solid rgba(255, 77, 94, 0.45);
+  border-radius: var(--r-md);
+  padding: 0.65rem 0.9rem;
   font-size: 0.95rem;
   max-width: 640px;
   width: 100%;
   margin: 0 auto;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .ov-sheet {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 0.9rem;
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.45);
+  background: var(--glass-strong);
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  border: 1px solid var(--glass-brd);
+  border-top-color: rgba(255, 255, 255, 0.16);
+  border-radius: 28px;
+  padding: 0.55rem 1rem 1rem;
+  box-shadow: 0 -14px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 var(--glass-hi);
   max-width: 640px;
   width: 100%;
   margin: 0 auto;
-  max-height: 55vh;
+  max-height: 58vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.8rem;
+  animation: rise-in 0.3s ease-out;
 }
 
-/* Poignée de réduction/agrandissement (style Google Maps) */
+/* Poignée de réduction */
 .ov-sheet-handle {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.15rem;
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0.1rem 0 0.35rem;
-  margin: -0.3rem 0 0;
+  padding: 0.15rem 0 0.1rem;
+  margin: 0;
 }
 
 .ov-sheet-grip {
-  width: 40px;
+  width: 44px;
   height: 4px;
   border-radius: 999px;
-  background: var(--muted);
-  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .ov-sheet-chevron {
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   color: var(--muted);
   line-height: 1;
 }
 
-/* Réduit : on masque le contenu, on garde poignée + contrôles */
 .ov-sheet--collapsed .ov-sheet-body {
   display: none;
 }
@@ -542,10 +571,10 @@ body {
 .ov-sheet-body {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.8rem;
 }
 
-/* Résumé de navigation : temps / km / arrivée restants */
+/* Résumé de navigation : gros chiffre en dégradé */
 .ov-navsum {
   display: flex;
   flex-direction: column;
@@ -554,18 +583,40 @@ body {
 
 .ov-navsum-time {
   font-family: var(--mono);
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 700;
-  color: var(--teal);
-  line-height: 1;
+  line-height: 1.05;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .ov-navsum-sub {
   font-size: 1.05rem;
+  font-weight: 500;
   color: var(--text);
+  opacity: 0.85;
 }
 
-/* En-tête de panneau avec bouton de fermeture */
+/* Panneaux internes : fondus dans la feuille */
+.ov-sheet .panel,
+.ov-history .panel {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.panel-title {
+  margin: 0 0 0.6rem;
+  font-size: 0.92rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .panel-header-row {
   display: flex;
   align-items: center;
@@ -583,148 +634,79 @@ body {
   height: 30px;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: var(--panel-2);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .panel-close:hover {
   color: var(--red);
-  border-color: var(--red);
+  border-color: rgba(255, 77, 94, 0.6);
 }
 
-/* Les panneaux internes deviennent transparents dans la feuille */
-.ov-sheet .panel {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-}
-
-.ov-controls {
-  display: flex;
-  gap: 0.6rem;
-}
-
-.ov-controls .btn-start,
-.ov-controls .btn-stop {
-  flex: 1;
-}
-
-.btn-reset {
-  flex: 0 0 auto;
-  min-width: 52px;
-}
-
-/* ============ Historique en surimpression ============ */
-.ov-history-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 2000;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0.75rem;
-}
-
-.ov-history {
-  position: relative;
-  width: 100%;
-  max-width: 640px;
-  max-height: 80vh;
-  overflow-y: auto;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 1rem;
-}
-
-.ov-history-close {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  color: var(--text);
-  cursor: pointer;
-  z-index: 1;
-}
-
-.ov-history .panel {
-  background: transparent;
-  border: none;
-  padding: 0;
-}
-
-/* ============ Panneaux (contenu) ============ */
-.panel-title {
-  margin: 0 0 0.6rem;
-  font-size: 1rem;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text);
-}
-
-/* Stats */
+/* ============ Stats ============ */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
+  gap: 0.55rem;
 }
 
 .stat-card {
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.55rem 0.6rem;
+  border-radius: var(--r-md);
+  padding: 0.6rem 0.65rem;
 }
 
 .stat-label {
-  font-size: 0.68rem;
-  letter-spacing: 0.5px;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .stat-value {
   font-family: var(--mono);
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 700;
-  margin-top: 0.15rem;
+  margin-top: 0.2rem;
 }
 
 .stat-unit {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--muted);
   font-weight: 400;
 }
 
 .stat-teal .stat-value {
   color: var(--teal);
+  text-shadow: 0 0 16px rgba(45, 212, 191, 0.35);
 }
 
 .stat-amber .stat-value {
   color: var(--amber);
+  text-shadow: 0 0 16px rgba(255, 176, 32, 0.3);
 }
 
-/* Suggestion / itinéraire */
+/* ============ Suggestion / itinéraire ============ */
+.suggestion-line {
+  margin: 0;
+}
+
 .suggestion-metrics {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin: 0.5rem 0;
+  margin: 0.55rem 0;
 }
 
 .metric-chip {
   font-family: var(--mono);
-  font-size: 0.88rem;
-  padding: 0.28rem 0.55rem;
-  border-radius: 6px;
+  font-size: 0.86rem;
+  padding: 0.32rem 0.65rem;
+  border-radius: 999px;
   background: var(--panel-2);
   border: 1px solid var(--border);
 }
@@ -732,11 +714,13 @@ body {
 .metric-chip.amber {
   color: var(--amber);
   border-color: rgba(255, 176, 32, 0.4);
+  background: rgba(255, 176, 32, 0.07);
 }
 
 .metric-chip.teal {
   color: var(--teal);
   border-color: rgba(45, 212, 191, 0.4);
+  background: rgba(45, 212, 191, 0.07);
 }
 
 .dashed-hint {
@@ -746,14 +730,14 @@ body {
 
 .eta-block {
   margin-top: 0.75rem;
-  padding-top: 0.7rem;
-  border-top: 1px dashed var(--border);
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
 }
 
 .eta-title {
-  margin: 0 0 0.4rem;
-  font-size: 0.8rem;
-  letter-spacing: 1px;
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -768,53 +752,222 @@ body {
 
 .eta-value {
   font-family: var(--mono);
-  font-size: 1.7rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  color: var(--teal);
   display: block;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .traffic-badge {
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.32rem 0.65rem;
+  padding: 0.34rem 0.75rem;
   border-radius: 999px;
   white-space: nowrap;
 }
 
 .badge-slow {
-  background: rgba(255, 77, 79, 0.15);
-  color: var(--red);
-  border: 1px solid rgba(255, 77, 79, 0.5);
+  background: rgba(255, 77, 94, 0.13);
+  color: #ff8d98;
+  border: 1px solid rgba(255, 77, 94, 0.45);
 }
 
 .badge-fast {
-  background: rgba(45, 212, 191, 0.15);
+  background: rgba(45, 212, 191, 0.12);
   color: var(--teal);
-  border: 1px solid rgba(45, 212, 191, 0.5);
+  border: 1px solid rgba(45, 212, 191, 0.45);
 }
 
 .badge-ok {
-  background: rgba(138, 151, 163, 0.12);
+  background: rgba(143, 160, 174, 0.1);
   color: var(--muted);
   border: 1px solid var(--border);
 }
 
-.suggestion-line {
-  margin: 0;
+/* ============ Alerte de vitesse (réglage) ============ */
+.ov-speedlimit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-/* Historique */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.stepper button {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.stepper button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stepper-val {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  min-width: 78px;
+  text-align: center;
+}
+
+.auto-badge {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--teal);
+  background: rgba(45, 212, 191, 0.1);
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+}
+
+/* ============ Contrôles ============ */
+.ov-controls {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.ov-controls .btn-start,
+.ov-controls .btn-stop {
+  flex: 1;
+}
+
+.btn {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.6px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 0.8rem 1.1rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-start {
+  background: var(--grad);
+  color: #04211d;
+  box-shadow: 0 8px 26px rgba(45, 212, 191, 0.4);
+}
+
+.btn-start:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+
+.btn-stop {
+  background: var(--grad-red);
+  color: #fff;
+  box-shadow: 0 8px 26px rgba(255, 46, 99, 0.4);
+}
+
+.btn-ghost {
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-reset {
+  flex: 0 0 auto;
+  min-width: 54px;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.btn-icon {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.25rem 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-icon:hover {
+  color: var(--red);
+  border-color: rgba(255, 77, 94, 0.6);
+}
+
+/* ============ Historique en surimpression ============ */
+.ov-history-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(2, 4, 6, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.8rem;
+}
+
+.ov-history {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--glass-strong);
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  border: 1px solid var(--glass-brd);
+  border-top-color: rgba(255, 255, 255, 0.16);
+  border-radius: 28px;
+  padding: 1.1rem;
+  animation: rise-in 0.28s ease-out;
+}
+
+.ov-history-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  z-index: 1;
+}
+
 .history-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-right: 2.25rem;
+  padding-right: 2.4rem;
 }
 
 .trip-list {
   list-style: none;
-  margin: 0.5rem 0 0;
+  margin: 0.6rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -827,14 +980,14 @@ body {
   gap: 0.75rem;
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 0.6rem 0.75rem;
+  border-radius: var(--r-md);
+  padding: 0.65rem 0.8rem;
 }
 
 .trip-main {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.12rem;
   flex: 1;
   min-width: 0;
 }
@@ -848,7 +1001,7 @@ body {
   display: flex;
   gap: 0.75rem;
   font-family: var(--mono);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: var(--muted);
 }
 
@@ -856,61 +1009,42 @@ body {
   color: var(--amber);
 }
 
-/* ============ Boutons ============ */
-.btn {
-  font-family: var(--sans);
-  font-weight: 600;
-  font-size: 1rem;
-  letter-spacing: 0.5px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 0.75rem 1.1rem;
-  cursor: pointer;
-  transition: transform 0.08s ease, filter 0.15s ease;
-}
-
-.btn:active {
-  transform: translateY(1px);
-}
-
-.btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.btn-start {
-  background: var(--teal);
-  color: #062018;
-}
-
-.btn-stop {
-  background: var(--red);
-  color: #2a0405;
-}
-
-.btn-ghost {
-  background: var(--panel-2);
-  border-color: var(--border);
-  color: var(--text);
-}
-
-.btn-sm {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.85rem;
-}
-
-.btn-icon {
+/* ============ Marqueurs de carte ============ */
+.leaflet-div-icon.car-marker,
+.leaflet-div-icon.report-marker,
+.leaflet-div-icon.camera-marker {
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  padding: 0.25rem 0.55rem;
-  border-radius: 6px;
-  cursor: pointer;
+  border: none;
 }
 
-.btn-icon:hover {
-  color: var(--red);
-  border-color: var(--red);
+/* Rotation pilotée image par image (requestAnimationFrame) : pas de
+   transition CSS, sinon elle lutterait contre l'animation. */
+.car-rot {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  will-change: transform;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 10px rgba(45, 212, 191, 0.45));
+}
+
+.report-pin {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.camera-pin {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  opacity: 0.9;
 }
 
 /* ============ Utilitaires ============ */
@@ -923,33 +1057,66 @@ body {
 }
 
 .error-text {
-  color: var(--red);
+  color: #ff8d98;
   font-size: 0.9rem;
+}
+
+/* Défilement discret dans les panneaux de verre */
+.ov-sheet::-webkit-scrollbar,
+.ov-history::-webkit-scrollbar,
+.ov-suggestions::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ov-sheet::-webkit-scrollbar-thumb,
+.ov-history::-webkit-scrollbar-thumb,
+.ov-suggestions::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
 }
 
 /* ============ Toast ============ */
 .toast {
   position: absolute;
-  bottom: 40%;
+  bottom: 42%;
   left: 50%;
   transform: translateX(-50%);
-  padding: 0.7rem 1.2rem;
-  border-radius: 10px;
+  padding: 0.7rem 1.25rem;
+  border-radius: 999px;
   font-weight: 600;
   z-index: 3000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  max-width: calc(100% - 24px);
+  max-width: calc(100% - 28px);
   text-align: center;
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  animation: rise-in 0.25s ease-out;
 }
 
 .toast-ok {
-  background: var(--teal);
-  color: #062018;
+  background: rgba(45, 212, 191, 0.16);
+  color: #b8f5ec;
+  border: 1px solid rgba(45, 212, 191, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 22px rgba(45, 212, 191, 0.25);
 }
 
 .toast-err {
-  background: var(--red);
-  color: #2a0405;
+  background: rgba(255, 77, 94, 0.16);
+  color: #ffd9dd;
+  border: 1px solid rgba(255, 77, 94, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 22px rgba(255, 77, 94, 0.25);
+}
+
+/* ============ Repli si le verre dépoli n'est pas supporté ============ */
+@supports not (backdrop-filter: blur(1px)) {
+  .ov-search,
+  .ov-suggestions,
+  .ov-nav,
+  .fab,
+  .ov-sheet,
+  .ov-history,
+  .toast {
+    background: rgba(12, 17, 22, 0.96);
+  }
 }
 
 /* ============ Responsive ============ */

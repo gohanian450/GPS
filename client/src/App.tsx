@@ -9,8 +9,8 @@ import { TripHistory } from './components/TripHistory';
 import { useTracker } from './lib/useTracker';
 import { haversineMeters } from './lib/geo';
 
-// Distance restante le long de l'itinéraire depuis la position courante (m).
-function remainingAlongRoute(points: LatLng[], pos: LatLng): number {
+// Indice du point de l'itinéraire le plus proche de la position courante.
+function nearestIndex(points: LatLng[], pos: LatLng): number {
   let nearest = 0;
   let min = Infinity;
   for (let i = 0; i < points.length; i++) {
@@ -20,8 +20,22 @@ function remainingAlongRoute(points: LatLng[], pos: LatLng): number {
       nearest = i;
     }
   }
-  let rem = min;
-  for (let i = nearest; i < points.length - 1; i++) {
+  return nearest;
+}
+
+// Progression parcourue le long de l'itinéraire (m depuis le départ).
+function routeProgressMeters(points: LatLng[], pos: LatLng): number {
+  const n = nearestIndex(points, pos);
+  let off = 0;
+  for (let i = 0; i < n; i++) off += haversineMeters(points[i], points[i + 1]);
+  return off;
+}
+
+// Distance restante le long de l'itinéraire depuis la position courante (m).
+function remainingAlongRoute(points: LatLng[], pos: LatLng): number {
+  const n = nearestIndex(points, pos);
+  let rem = haversineMeters(pos, points[n]);
+  for (let i = n; i < points.length - 1; i++) {
     rem += haversineMeters(points[i], points[i + 1]);
   }
   return rem;
@@ -77,9 +91,6 @@ export default function App() {
   // Radars photo officiels du Québec (données gouvernementales statiques).
   const [speedCameras, setSpeedCameras] = useState<SpeedCamera[]>([]);
   const alertedCameras = useRef<Set<string>>(new Set());
-
-  // Navigation tour-par-tour : index de la manœuvre courante
-  const [navIndex, setNavIndex] = useState(0);
 
   // #1 Recentrer / suivi de la carte
   const [following, setFollowing] = useState(true);
@@ -254,28 +265,6 @@ export default function App() {
     };
   }, [destination, state.tracking]);
 
-  // Réinitialise le guidage quand un nouvel itinéraire est calculé.
-  useEffect(() => {
-    setNavIndex(0);
-  }, [route]);
-
-  // Avance la manœuvre courante à mesure qu'on s'en approche (< 30 m).
-  useEffect(() => {
-    const list = route?.instructions;
-    if (!state.tracking || !list?.length || !state.position) return;
-    let idx = navIndex;
-    while (idx < list.length - 1) {
-      const ins = list[idx];
-      if (ins.lat == null || ins.lng == null) {
-        idx++;
-        continue;
-      }
-      const d = haversineMeters(state.position, { lat: ins.lat, lng: ins.lng });
-      if (d < 30) idx++;
-      else break;
-    }
-    if (idx !== navIndex) setNavIndex(idx);
-  }, [state.position, state.tracking, route, navIndex]);
 
   // #4 Recalcul automatique si on s'écarte de l'itinéraire (> 60 m).
   useEffect(() => {
@@ -546,14 +535,23 @@ export default function App() {
     }
   };
 
-  // Manœuvre de navigation courante (pendant le suivi).
-  const navList = route?.instructions ?? [];
+  // Progression le long de l'itinéraire (m parcourus depuis le départ). Sert à
+  // trouver la PROCHAINE manœuvre devant nous et la distance qui la sépare —
+  // celle-ci diminue toujours (contrairement à une distance à vol d'oiseau).
+  const userOffset =
+    state.tracking && route?.points?.length && state.position
+      ? routeProgressMeters(route.points, state.position)
+      : 0;
+
+  // Prochaine manœuvre = première instruction encore DEVANT nous (on ignore le
+  // « départ », et on garde une petite marge pour ne pas rester bloqué dessus).
   const currentInstr =
-    state.tracking && navList.length ? navList[Math.min(navIndex, navList.length - 1)] : null;
-  const navDistance =
-    currentInstr && currentInstr.lat != null && currentInstr.lng != null && state.position
-      ? haversineMeters(state.position, { lat: currentInstr.lat, lng: currentInstr.lng })
+    state.tracking && route?.instructions?.length
+      ? route.instructions.find(
+          (ins) => !/DEPART/i.test(ins.maneuver) && ins.routeOffsetInMeters > userOffset + 8
+        ) ?? null
       : null;
+  const navDistance = currentInstr ? Math.max(0, currentInstr.routeOffsetInMeters - userOffset) : null;
 
   // Résumé de navigation : distance/temps restants + heure d'arrivée (live).
   let navSummary: { remainingMeters: number; remainingSeconds: number | null; arrivalAt: number | null } | null =
